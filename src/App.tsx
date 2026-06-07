@@ -78,8 +78,8 @@ function AppContent() {
             setIsMobileMenuOpen(false);
           }}
         >
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-650 shadow-[0_0_15px_rgba(168,85,247,0.35)] transition-transform duration-300 group-hover:scale-105">
-            <span className="text-white font-extrabold text-sm font-mono tracking-tighter">PS</span>
+          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden bg-white shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-transform duration-300 group-hover:scale-105 shrink-0">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
           </div>
           <div>
             <h1 className="text-sm font-black tracking-wider font-sans bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-350">
@@ -214,9 +214,14 @@ function AppContent() {
             >
               <Menu className="w-5.5 h-5.5" />
             </button>
-            <span className="text-xs font-black tracking-widest uppercase text-slate-200">
-              pisulka-squad
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md overflow-hidden bg-white flex items-center justify-center shrink-0">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
+              </div>
+              <span className="text-xs font-black tracking-widest uppercase text-slate-200">
+                pisulka-squad
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
