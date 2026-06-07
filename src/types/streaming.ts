@@ -88,3 +88,12 @@ export interface WatchProgress {
   completed: boolean;
   lastWatched: string; // ISO string
 }
+
+export interface GalleryItem {
+  id: string;
+  imageUrl: string; // Base64 compressed image (WebP)
+  uploadedBy: string; // Name of the uploader
+  caption?: string; // Optional image description
+  createdAt: string; // ISO timestamp
+}
+
