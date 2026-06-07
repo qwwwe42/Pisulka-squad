@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig } from '../types/streaming';
+import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem } from '../types/streaming';
 
 interface StreamingContextType {
   shows: Show[];
@@ -26,6 +26,9 @@ interface StreamingContextType {
   deleteNews: (newsId: string) => Promise<void>;
   minecraftConfig: MinecraftConfig;
   updateMinecraftConfig: (config: MinecraftConfig) => Promise<void>;
+  gallery: GalleryItem[];
+  addGalleryItem: (imageUrl: string, uploadedBy: string, caption?: string) => Promise<string>;
+  deleteGalleryItem: (itemId: string) => Promise<void>;
   loadDemoData: () => void;
   clearAllData: () => void;
   isFirebaseConnected: boolean;
@@ -252,6 +255,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   });
   const [watchProgress, setWatchProgress] = useState<Record<string, WatchProgress>>(() => loadProgressFromLS());
+  const [gallery, setGallery] = useState<GalleryItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('penis_ink_gallery');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeShowId, setActiveShowId] = useState<string | null>(null);
   const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
@@ -414,10 +425,49 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           console.warn('Firestore minecraft config onSnapshot error:', error);
         });
 
+        // Start real-time listener for gallery
+        const unsubGallery = onSnapshot(collection(db, 'gallery'), (snapshot) => {
+          const firestoreGallery: GalleryItem[] = [];
+          snapshot.forEach((docSnap) => {
+            firestoreGallery.push({ id: docSnap.id, ...docSnap.data() } as GalleryItem);
+          });
+          
+          if (firestoreGallery.length === 0) {
+            const demoItems: GalleryItem[] = [
+              {
+                id: 'demo-gallery-1',
+                imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=800&auto=format&fit=crop',
+                uploadedBy: 'screp',
+                caption: 'Первый запуск нашего Minecraft сервера!',
+                createdAt: new Date('2026-06-07T10:00:00.000Z').toISOString()
+              },
+              {
+                id: 'demo-gallery-2',
+                imageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=800&auto=format&fit=crop',
+                uploadedBy: 'Steve',
+                caption: 'Уютный вечер за просмотром аниме',
+                createdAt: new Date('2026-06-07T11:00:00.000Z').toISOString()
+              }
+            ];
+            demoItems.forEach(item => {
+              setDoc(doc(db, 'gallery', item.id), item).catch(console.error);
+            });
+            setGallery(demoItems);
+            localStorage.setItem('penis_ink_gallery', JSON.stringify(demoItems));
+          } else {
+            const sorted = firestoreGallery.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setGallery(sorted);
+            localStorage.setItem('penis_ink_gallery', JSON.stringify(sorted));
+          }
+        }, (error) => {
+          console.warn('Firestore gallery onSnapshot error:', error);
+        });
+
         unsubscribeRef.current = () => {
           unsub();
           unsubNews();
           unsubMinecraft();
+          unsubGallery();
         };
       } catch (err) {
         console.warn('Firebase connection failed, using localStorage:', err);
@@ -435,6 +485,27 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (!cachedMc) {
           setMinecraftConfig(DEFAULT_MINECRAFT_CONFIG);
           localStorage.setItem('penis_ink_minecraft_config', JSON.stringify(DEFAULT_MINECRAFT_CONFIG));
+        }
+        const cachedGallery = localStorage.getItem('penis_ink_gallery');
+        if (!cachedGallery || JSON.parse(cachedGallery).length === 0) {
+          const demoItems = [
+            {
+              id: 'demo-gallery-1',
+              imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=800&auto=format&fit=crop',
+              uploadedBy: 'screp',
+              caption: 'Первый запуск нашего Minecraft сервера!',
+              createdAt: new Date('2026-06-07T10:00:00.000Z').toISOString()
+            },
+            {
+              id: 'demo-gallery-2',
+              imageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=800&auto=format&fit=crop',
+              uploadedBy: 'Steve',
+              caption: 'Уютный вечер за просмотром аниме',
+              createdAt: new Date('2026-06-07T11:00:00.000Z').toISOString()
+            }
+          ];
+          setGallery(demoItems);
+          localStorage.setItem('penis_ink_gallery', JSON.stringify(demoItems));
         }
       }
     };
@@ -793,6 +864,44 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const addGalleryItem = async (imageUrl: string, uploadedBy: string, caption?: string): Promise<string> => {
+    const newItem: GalleryItem = {
+      id: 'gallery-' + Date.now().toString() + '-' + Math.random().toString(36).substring(2, 7),
+      imageUrl,
+      uploadedBy,
+      caption,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedGallery = [newItem, ...gallery];
+    setGallery(updatedGallery);
+    localStorage.setItem('penis_ink_gallery', JSON.stringify(updatedGallery));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        await setDoc(doc(db, 'gallery', newItem.id), newItem);
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+
+    return newItem.id;
+  };
+
+  const deleteGalleryItem = async (itemId: string) => {
+    const updatedGallery = gallery.filter((item) => item.id !== itemId);
+    setGallery(updatedGallery);
+    localStorage.setItem('penis_ink_gallery', JSON.stringify(updatedGallery));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        await deleteDoc(doc(db, 'gallery', itemId));
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
   const clearAllData = async () => {
     if (isFirebaseConnectedRef.current) {
       try {
@@ -802,6 +911,9 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         for (const item of news) {
           await deleteDoc(doc(db, 'news', item.id));
         }
+        for (const item of gallery) {
+          await deleteDoc(doc(db, 'gallery', item.id));
+        }
         await deleteDoc(doc(db, 'settings', 'minecraft'));
       } catch (e) {
         console.error('Firestore clear failed:', e);
@@ -810,12 +922,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setShows([]);
     setWatchProgress({});
     setNews([]);
+    setGallery([]);
     setMinecraftConfig(DEFAULT_MINECRAFT_CONFIG);
     localStorage.removeItem(LS_SHOWS_KEY);
     localStorage.removeItem(LS_PROGRESS_KEY);
     localStorage.removeItem(LS_SYNCED_KEY);
     localStorage.removeItem('penis_ink_news');
     localStorage.removeItem('penis_ink_minecraft_config');
+    localStorage.removeItem('penis_ink_gallery');
     setActiveShowId(null);
     setActiveEpisodeId(null);
   };
@@ -843,6 +957,9 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       deleteNews,
       minecraftConfig,
       updateMinecraftConfig,
+      gallery,
+      addGalleryItem,
+      deleteGalleryItem,
       loadDemoData,
       clearAllData,
       isFirebaseConnected

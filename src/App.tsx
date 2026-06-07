@@ -5,7 +5,8 @@ import { ShowDetails } from './components/ShowDetails';
 import { VideoPlayer } from './components/VideoPlayer';
 import { AdminPanel } from './components/AdminPanel';
 import { MinecraftView } from './components/MinecraftView';
-import { Settings, Home, Cloud, CloudOff, Menu, X, Tv, Gamepad2 } from 'lucide-react';
+import { GalleryView } from './components/GalleryView';
+import { Settings, Home, Cloud, CloudOff, Menu, X, Tv, Gamepad2, Image } from 'lucide-react';
 
 function AppContent() {
   const {
@@ -16,7 +17,7 @@ function AppContent() {
     isFirebaseConnected
   } = useStreaming();
 
-  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'minecraft' | 'admin'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'gallery' | 'minecraft' | 'admin'>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('penis_ink_admin') === 'true';
@@ -139,6 +140,22 @@ function AppContent() {
             <Gamepad2 className="w-4 h-4" />
             <span>Майнкрафт</span>
           </button>
+
+          {/* Галерея */}
+          <button
+            onClick={() => {
+              setActiveTab('gallery');
+              handleBackToCatalog();
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'gallery'
+                ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20 shadow-[0_0_12px_rgba(168,85,247,0.1)]'
+                : 'text-slate-405 hover:text-slate-205 hover:bg-slate-900 border border-transparent'
+              }`}
+          >
+            <Image className="w-4 h-4" />
+            <span>Галерея</span>
+          </button>
         </nav>
 
         {/* Bottom Panel (Admin & Status) */}
@@ -205,7 +222,7 @@ function AppContent() {
           <div className="flex items-center gap-2">
             {/* Show simple category/indicator */}
             <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 border border-purple-800/30 px-2.5 py-0.5 rounded font-sans">
-              {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
+              {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'gallery' ? 'Галерея' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
             </span>
           </div>
         </header>
@@ -237,6 +254,9 @@ function AppContent() {
               onBack={handleBackToCatalog}
               onSelectEpisode={(epId) => handleSelectEpisode(activeShowId, epId)}
             />
+          ) : activeTab === 'gallery' ? (
+            // Render Gallery View
+            <GalleryView />
           ) : activeTab === 'minecraft' ? (
             // Render Minecraft View
             <MinecraftView />
