@@ -71,24 +71,14 @@ function AppContent() {
 
         {/* Brand Logo */}
         <div
-          className="flex items-center gap-2.5 group cursor-pointer select-none"
+          className="flex items-center group cursor-pointer select-none max-w-[170px] h-12 overflow-hidden"
           onClick={() => {
             setActiveTab('home');
             handleBackToCatalog();
             setIsMobileMenuOpen(false);
           }}
         >
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden bg-white shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-transform duration-300 group-hover:scale-105 shrink-0">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
-          </div>
-          <div>
-            <h1 className="text-sm font-black tracking-wider font-sans bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-350">
-              pisulka-squad
-            </h1>
-            <p className="text-[9px] font-bold tracking-[0.15em] text-purple-400 uppercase font-sans">
-              Media Portal
-            </p>
-          </div>
+          <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]" />
         </div>
 
         {/* Navigation Menu */}
@@ -214,13 +204,14 @@ function AppContent() {
             >
               <Menu className="w-5.5 h-5.5" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md overflow-hidden bg-white flex items-center justify-center shrink-0">
-                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
-              </div>
-              <span className="text-xs font-black tracking-widest uppercase text-slate-200">
-                pisulka-squad
-              </span>
+            <div 
+              className="flex items-center h-8 cursor-pointer select-none"
+              onClick={() => {
+                setActiveTab('home');
+                handleBackToCatalog();
+              }}
+            >
+              <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain" />
             </div>
           </div>
 
