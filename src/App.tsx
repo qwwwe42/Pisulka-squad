@@ -8,12 +8,12 @@ import { MinecraftView } from './components/MinecraftView';
 import { Settings, Home, Cloud, CloudOff, Menu, X, Tv, Gamepad2 } from 'lucide-react';
 
 function AppContent() {
-  const { 
-    activeShowId, 
-    activeEpisodeId, 
-    setActiveShowId, 
-    setActiveEpisodeId, 
-    isFirebaseConnected 
+  const {
+    activeShowId,
+    activeEpisodeId,
+    setActiveShowId,
+    setActiveEpisodeId,
+    isFirebaseConnected
   } = useStreaming();
 
   const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'minecraft' | 'admin'>('home');
@@ -46,20 +46,19 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex bg-[#0a0b0d] text-slate-200 font-sans selection:bg-purple-500/20 antialiased w-full">
-      
+
       {/* Backdrop for Mobile Sidebar */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* LEFT SIDEBAR NAVIGATION */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-slate-900 bg-[#0a0b0d] p-6 flex flex-col gap-8 shrink-0 transition-transform duration-300 md:translate-x-0 md:sticky md:top-0 md:h-screen ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-slate-900 bg-[#0a0b0d] p-6 flex flex-col gap-8 shrink-0 transition-transform duration-300 md:translate-x-0 md:sticky md:top-0 md:h-screen ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {/* Sidebar Close button on mobile */}
         <button
@@ -70,8 +69,8 @@ function AppContent() {
         </button>
 
         {/* Brand Logo */}
-        <div 
-          className="flex items-center gap-2.5 group cursor-pointer select-none" 
+        <div
+          className="flex items-center gap-2.5 group cursor-pointer select-none"
           onClick={() => {
             setActiveTab('home');
             handleBackToCatalog();
@@ -100,11 +99,10 @@ function AppContent() {
               handleBackToCatalog();
               setIsMobileMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${
-              activeTab === 'home' && !activeShowId
+            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'home' && !activeShowId
                 ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20 shadow-[0_0_12px_rgba(168,85,247,0.1)]'
                 : 'text-slate-405 hover:text-slate-205 hover:bg-slate-900 border border-transparent'
-            }`}
+              }`}
           >
             <Home className="w-4 h-4" />
             <span>Главная</span>
@@ -117,11 +115,10 @@ function AppContent() {
               handleBackToCatalog();
               setIsMobileMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${
-              activeTab === 'shows' || activeShowId
+            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'shows' || activeShowId
                 ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20 shadow-[0_0_12px_rgba(168,85,247,0.1)]'
                 : 'text-slate-405 hover:text-slate-205 hover:bg-slate-900 border border-transparent'
-            }`}
+              }`}
           >
             <Tv className="w-4 h-4" />
             <span>Сериалы</span>
@@ -134,11 +131,10 @@ function AppContent() {
               handleBackToCatalog();
               setIsMobileMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${
-              activeTab === 'minecraft'
+            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'minecraft'
                 ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20 shadow-[0_0_12px_rgba(168,85,247,0.1)]'
                 : 'text-slate-405 hover:text-slate-205 hover:bg-slate-900 border border-transparent'
-            }`}
+              }`}
           >
             <Gamepad2 className="w-4 h-4" />
             <span>Майнкрафт</span>
@@ -158,23 +154,21 @@ function AppContent() {
                 setShowPasswordModal(true);
               }
             }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${
-              activeTab === 'admin'
+            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'admin'
                 ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20 shadow-[0_0_12px_rgba(168,85,247,0.1)]'
                 : 'text-slate-405 hover:text-slate-205 hover:bg-slate-900 border border-transparent'
-            }`}
+              }`}
           >
             <Settings className="w-4 h-4" />
             <span>Панель админа</span>
           </button>
 
           {/* Firestore Connection status */}
-          <div 
-            className={`px-4 py-2.5 rounded-xl border flex items-center gap-2.5 transition-all text-[10px] font-bold ${
-              isFirebaseConnected 
-                ? 'bg-green-950/10 border-green-900/30 text-green-500' 
+          <div
+            className={`px-4 py-2.5 rounded-xl border flex items-center gap-2.5 transition-all text-[10px] font-bold ${isFirebaseConnected
+                ? 'bg-green-950/10 border-green-900/30 text-green-500'
                 : 'bg-amber-950/10 border-amber-900/30 text-amber-500'
-            }`}
+              }`}
           >
             {isFirebaseConnected ? (
               <>
@@ -193,7 +187,7 @@ function AppContent() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-        
+
         {/* MOBILE HEADER */}
         <header className="md:hidden sticky top-0 z-30 h-16 bg-[#0a0b0d]/90 backdrop-blur-md border-b border-slate-900 px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
@@ -207,7 +201,7 @@ function AppContent() {
               pisulka-squad
             </span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {/* Show simple category/indicator */}
             <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 border border-purple-800/30 px-2.5 py-0.5 rounded font-sans">
@@ -224,12 +218,12 @@ function AppContent() {
           ) : activeEpisodeId && activeShowId ? (
             // Render Video Player (with back-breadcrumb details view)
             <div className="space-y-6">
-              <VideoPlayer 
+              <VideoPlayer
                 showId={activeShowId}
                 episodeId={activeEpisodeId}
                 onClose={handleClosePlayer}
               />
-              <ShowDetails 
+              <ShowDetails
                 showId={activeShowId}
                 onBack={handleBackToCatalog}
                 onSelectEpisode={(epId) => handleSelectEpisode(activeShowId, epId)}
@@ -238,7 +232,7 @@ function AppContent() {
             </div>
           ) : activeShowId ? (
             // Render Show Details
-            <ShowDetails 
+            <ShowDetails
               showId={activeShowId}
               onBack={handleBackToCatalog}
               onSelectEpisode={(epId) => handleSelectEpisode(activeShowId, epId)}
@@ -248,14 +242,14 @@ function AppContent() {
             <MinecraftView />
           ) : activeTab === 'shows' ? (
             // Render Shows Catalog
-            <Dashboard 
+            <Dashboard
               onSelectShow={handleSelectShow}
               onSelectEpisode={handleSelectEpisode}
               mode="catalog"
             />
           ) : (
             // Render Home Dashboard
-            <Dashboard 
+            <Dashboard
               onSelectShow={handleSelectShow}
               onSelectEpisode={handleSelectEpisode}
               mode="home"
@@ -274,7 +268,7 @@ function AppContent() {
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
           <div className={`w-80 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4 text-center ${passwordError ? 'animate-[shake_0.4s_ease-in-out]' : ''}`}>
-            
+
             <div className="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center mx-auto">
               <Settings className="w-6 h-6 animate-pulse" />
             </div>
@@ -284,7 +278,7 @@ function AppContent() {
               <p className="text-[11px] text-slate-500">Введите пароль для доступа к настройкам.</p>
             </div>
 
-            <form 
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
                 if (passwordInput === '676767') {
