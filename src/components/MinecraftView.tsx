@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Server, Users, Copy, Check, Gamepad2, Compass, BookOpen, ShieldAlert, Edit3, X, Plus, Trash2, Settings } from 'lucide-react';
 import { useStreaming } from '../context/StreamingContext';
 import type { MinecraftRule, MinecraftStep, MinecraftPlayer } from '../types/streaming';
@@ -15,26 +15,25 @@ const DEFAULT_PLAYERS: MinecraftPlayer[] = [
 export const MinecraftView: React.FC = () => {
   const { minecraftConfig, updateMinecraftConfig } = useStreaming();
   const [copied, setCopied] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin] = useState(() => sessionStorage.getItem('penis_ink_admin') === 'true');
   const [isEditingMode, setIsEditingMode] = useState(false);
 
   // Local Form States
-  const [editServerIp, setEditServerIp] = useState('');
-  const [editVersion, setEditVersion] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editRules, setEditRules] = useState<MinecraftRule[]>([]);
-  const [editSteps, setEditSteps] = useState<MinecraftStep[]>([]);
-  const [editPlayers, setEditPlayers] = useState<MinecraftPlayer[]>([]);
+  const [editServerIp, setEditServerIp] = useState(() => minecraftConfig?.serverIp || '');
+  const [editVersion, setEditVersion] = useState(() => minecraftConfig?.version || '');
+  const [editDescription, setEditDescription] = useState(() => minecraftConfig?.description || '');
+  const [editRules, setEditRules] = useState<MinecraftRule[]>(() => minecraftConfig?.rules || []);
+  const [editSteps, setEditSteps] = useState<MinecraftStep[]>(() => minecraftConfig?.steps || []);
+  const [editPlayers, setEditPlayers] = useState<MinecraftPlayer[]>(() => minecraftConfig?.players || DEFAULT_PLAYERS);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const serverIp = minecraftConfig.serverIp;
 
-  useEffect(() => {
-    setIsAdmin(sessionStorage.getItem('penis_ink_admin') === 'true');
-  }, []);
-
-  // Sync state when config changes or when editing mode is toggled
-  useEffect(() => {
+  // Sync state when config changes or when editing mode is toggled using render-based state adjustment
+  const currentSyncKey = `${isEditingMode}-${minecraftConfig?.serverIp || ''}-${minecraftConfig?.version || ''}-${minecraftConfig?.description || ''}-${minecraftConfig?.rules?.length || 0}-${minecraftConfig?.steps?.length || 0}-${minecraftConfig?.players?.length || 0}`;
+  const [prevSyncKey, setPrevSyncKey] = useState(currentSyncKey);
+  if (currentSyncKey !== prevSyncKey) {
+    setPrevSyncKey(currentSyncKey);
     if (minecraftConfig) {
       setEditServerIp(minecraftConfig.serverIp || '');
       setEditVersion(minecraftConfig.version || '');
@@ -43,7 +42,7 @@ export const MinecraftView: React.FC = () => {
       setEditSteps(minecraftConfig.steps || []);
       setEditPlayers(minecraftConfig.players || DEFAULT_PLAYERS);
     }
-  }, [minecraftConfig, isEditingMode]);
+  }
 
   const handleCopy = () => {
     navigator.clipboard.writeText(serverIp);

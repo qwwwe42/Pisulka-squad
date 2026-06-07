@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { CalendarEvent } from '../types';
 import { useTracker } from '../context/TrackerContext';
 import { X, Trash2, Calendar, Clock, MapPin, AlignLeft, AlertTriangle } from 'lucide-react';
@@ -12,12 +12,12 @@ interface EventModalProps {
 export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate, onClose }) => {
   const { addEvent, updateEvent, deleteEvent, courses, toggleTask, triggerConfirm } = useTracker();
 
-  const [title, setTitle] = useState('');
-  const [startDateTime, setStartDateTime] = useState('');
-  const [endDateTime, setEndDateTime] = useState('');
-  const [type, setType] = useState<CalendarEvent['type']>('Meeting');
-  const [location, setLocation] = useState('');
-  const [notes, setNotes] = useState('');
+  const [title, setTitle] = useState(() => eventToEdit?.title || '');
+  const [startDateTime, setStartDateTime] = useState(() => eventToEdit?.startDateTime || `${defaultDate || '2026-06-06'}T12:00`);
+  const [endDateTime, setEndDateTime] = useState(() => eventToEdit?.endDateTime || `${defaultDate || '2026-06-06'}T13:00`);
+  const [type, setType] = useState<CalendarEvent['type']>(() => eventToEdit?.type || 'Meeting');
+  const [location, setLocation] = useState(() => eventToEdit?.location || '');
+  const [notes, setNotes] = useState(() => eventToEdit?.notes || '');
 
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +42,11 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
     }
   }
 
-  useEffect(() => {
+  // Sync state when eventToEdit or defaultDate changes using render-based state adjustment
+  const syncKey = eventToEdit ? `edit-${eventToEdit.id}-${eventToEdit.title}-${eventToEdit.startDateTime}-${eventToEdit.endDateTime}-${eventToEdit.type}-${eventToEdit.location || ''}-${eventToEdit.notes || ''}` : `new-${defaultDate || ''}`;
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey);
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
     if (eventToEdit) {
       setTitle(eventToEdit.title);
       setStartDateTime(eventToEdit.startDateTime);
@@ -54,8 +58,12 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
       const baseDate = defaultDate || '2026-06-06';
       setStartDateTime(`${baseDate}T12:00`);
       setEndDateTime(`${baseDate}T13:00`);
+      setTitle('');
+      setType('Meeting');
+      setLocation('');
+      setNotes('');
     }
-  }, [eventToEdit, defaultDate]);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +110,7 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
   // 1. Task event view
   if (isTaskEvent && eventToEdit) {
     // Clean task title from status prefix
-    const cleanTitle = title.replace(/^([✓📌]\s\[.*?\]\s)/, '');
+    const cleanTitle = title.replace(/^([✓📌]\s\[.*?\]\s)/u, '');
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">

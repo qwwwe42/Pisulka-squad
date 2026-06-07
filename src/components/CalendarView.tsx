@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTracker } from '../context/TrackerContext';
 import type { CalendarEvent } from '../types';
 import { EventModal } from './EventModal';
@@ -27,10 +27,12 @@ export const CalendarView: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [modalDate, setModalDate] = useState<string>(TODAY_STR);
 
-  // Sync mini calendar view month with currentDate month
-  useEffect(() => {
+  // Sync mini calendar view month with currentDate month using render-based state adjustment
+  const [prevCurrentDate, setPrevCurrentDate] = useState<Date>(currentDate);
+  if (currentDate.getTime() !== prevCurrentDate.getTime()) {
+    setPrevCurrentDate(currentDate);
     setMiniDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
-  }, [currentDate]);
+  }
 
   // Format date helper: YYYY-MM-DD
   const formatDateStr = (date: Date) => {
@@ -153,8 +155,8 @@ export const CalendarView: React.FC = () => {
     const lastDay = new Date(year, month + 1, 0);
     const totalDays = lastDay.getDate();
     
-    let startDayOfWeek = firstDay.getDay();
-    let offset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1; // Align Mon
+    const startDayOfWeek = firstDay.getDay();
+    const offset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1; // Align Mon
 
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     const cells: React.ReactNode[] = [];
@@ -251,8 +253,8 @@ export const CalendarView: React.FC = () => {
     const lastDay = new Date(year, month + 1, 0);
     const totalDays = lastDay.getDate();
     
-    let startDayOfWeek = firstDay.getDay();
-    let offset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1; // Align Mon
+    const startDayOfWeek = firstDay.getDay();
+    const offset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1; // Align Mon
 
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     const cells: React.ReactNode[] = [];

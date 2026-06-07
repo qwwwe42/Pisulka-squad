@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
@@ -272,6 +273,22 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // The root cause (undefined properties) is fixed, so transient errors should be retried.
   }, []);
 
+  async function seedFirestoreDemo(): Promise<boolean> {
+    try {
+      for (const show of DEMO_SHOWS) {
+        await setDoc(doc(db, 'shows', show.id), show);
+      }
+      persistShowsToLS(DEMO_SHOWS);
+      return true;
+    } catch (e) {
+      console.error('Failed to seed demo data to Firestore:', e);
+      handleWriteFailure(e);
+      setShows(DEMO_SHOWS);
+      persistShowsToLS(DEMO_SHOWS);
+      return false;
+    }
+  }
+
   // ====================================================================
   // 1. On mount: Try to connect Firebase. MERGE Firestore data with
   //    localStorage data (never replace). If Firebase fails, just use LS.
@@ -430,23 +447,8 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         unsubscribeRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const seedFirestoreDemo = async (): Promise<boolean> => {
-    try {
-      for (const show of DEMO_SHOWS) {
-        await setDoc(doc(db, 'shows', show.id), show);
-      }
-      persistShowsToLS(DEMO_SHOWS);
-      return true;
-    } catch (e) {
-      console.error('Failed to seed demo data to Firestore:', e);
-      handleWriteFailure(e);
-      setShows(DEMO_SHOWS);
-      persistShowsToLS(DEMO_SHOWS);
-      return false;
-    }
-  };
 
   // ====================================================================
   // 2. CRUD Operations — ALWAYS write to localStorage first.

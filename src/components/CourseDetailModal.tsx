@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Course } from '../types';
 import { useTracker } from '../context/TrackerContext';
 import { TaskList } from './TaskList';
@@ -20,33 +20,36 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({ courseId, 
 
   const course = courses.find(c => c.id === courseId);
 
-  // If course was deleted, close
-  if (!course) {
-    return null;
-  }
-
   // Local state for editing metadata
-  const [title, setTitle] = useState(course.title);
-  const [description, setDescription] = useState(course.description || '');
-  const [startDate, setStartDate] = useState(course.startDate);
-  const [endDate, setEndDate] = useState(course.endDate);
-  const [status, setStatus] = useState(course.status);
-  const [useManualProgress, setUseManualProgress] = useState(course.useManualProgress);
-  const [manualProgressPercent, setManualProgressPercent] = useState(course.manualProgressPercent || 0);
+  const [title, setTitle] = useState(course?.title || '');
+  const [description, setDescription] = useState(course?.description || '');
+  const [startDate, setStartDate] = useState(course?.startDate || '');
+  const [endDate, setEndDate] = useState(course?.endDate || '');
+  const [status, setStatus] = useState(course?.status || 'active');
+  const [useManualProgress, setUseManualProgress] = useState(course?.useManualProgress || false);
+  const [manualProgressPercent, setManualProgressPercent] = useState(course?.manualProgressPercent || 0);
 
   // Validation state
   const [error, setError] = useState<string | null>(null);
 
-  // Sync state if course updates in background
-  useEffect(() => {
-    setTitle(course.title);
-    setDescription(course.description || '');
-    setStartDate(course.startDate);
-    setEndDate(course.endDate);
-    setStatus(course.status);
-    setUseManualProgress(course.useManualProgress);
-    setManualProgressPercent(course.manualProgressPercent || 0);
-  }, [courseId, course.title, course.description, course.startDate, course.endDate, course.status, course.useManualProgress, course.manualProgressPercent]);
+  // Sync state if course updates in background using render-based state adjustment
+  const currentSyncKey = `${courseId}-${course?.title || ''}-${course?.description || ''}-${course?.startDate || ''}-${course?.endDate || ''}-${course?.status || ''}-${course?.useManualProgress || ''}-${course?.manualProgressPercent || 0}`;
+  const [prevSyncKey, setPrevSyncKey] = useState(currentSyncKey);
+  if (currentSyncKey !== prevSyncKey) {
+    setPrevSyncKey(currentSyncKey);
+    setTitle(course?.title || '');
+    setDescription(course?.description || '');
+    setStartDate(course?.startDate || '');
+    setEndDate(course?.endDate || '');
+    setStatus(course?.status || 'active');
+    setUseManualProgress(course?.useManualProgress || false);
+    setManualProgressPercent(course?.manualProgressPercent || 0);
+  }
+
+  // If course was deleted, close
+  if (!course) {
+    return null;
+  }
 
   const handleSaveDetails = (e: React.FormEvent) => {
     e.preventDefault();

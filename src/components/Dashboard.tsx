@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { ShowCard } from './ShowCard';
 import { Play, Search, Clock, Calendar } from 'lucide-react';
-import type { Show } from '../types/streaming';
 
 interface DashboardProps {
   onSelectShow: (showId: string) => void;
@@ -10,30 +9,68 @@ interface DashboardProps {
   mode?: 'home' | 'catalog';
 }
 
+// Pure CSS Confetti generator
+function triggerCelebration() {
+  // Inject confetti elements
+  const colors = ['#a855f7', '#06b6d4', '#ec4899', '#eab308', '#22c55e'];
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.inset = '0';
+  container.style.pointerEvents = 'none';
+  container.style.zIndex = '999';
+  container.id = 'confetti-container';
+  document.body.appendChild(container);
+
+  for (let i = 0; i < 100; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti-particle';
+    confetti.style.position = 'absolute';
+    confetti.style.width = `${Math.random() * 8 + 6}px`;
+    confetti.style.height = `${Math.random() * 15 + 8}px`;
+    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.left = `${Math.random() * 100}vw`;
+    confetti.style.top = `-20px`;
+    confetti.style.opacity = `${Math.random() * 0.6 + 0.4}`;
+    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+    
+    const duration = Math.random() * 3 + 2;
+    const delay = Math.random() * 2;
+    
+    confetti.style.animation = `fall ${duration}s linear ${delay}s infinite`;
+    container.appendChild(confetti);
+  }
+
+  // Clean up after 10 seconds
+  setTimeout(() => {
+    const el = document.getElementById('confetti-container');
+    if (el) el.remove();
+  }, 10000);
+}
+
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, mode = 'home' }) => {
   const { shows, watchProgress, loadDemoData, news } = useStreaming();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
   
+  // 1. Determine featured show (prefer ongoing show with active countdown, else first show)
+  const visibleShows = shows.filter(s => !s.isHidden);
+  const ongoingWithCountdown = visibleShows.find(s => s.status === 'ongoing' && s.nextEpisodeRelease);
+  const featuredShow = visibleShows.length > 0 ? (ongoingWithCountdown || visibleShows[0]) : null;
+
   // Countdown state
-  const [featuredShow, setFeaturedShow] = useState<Show | null>(null);
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
 
-  // 1. Determine featured show (prefer ongoing show with active countdown, else first show)
-  useEffect(() => {
-    const visibleShows = shows.filter(s => !s.isHidden);
-    if (visibleShows.length > 0) {
-      const ongoingWithCountdown = visibleShows.find(s => s.status === 'ongoing' && s.nextEpisodeRelease);
-      setFeaturedShow(ongoingWithCountdown || visibleShows[0]);
-    } else {
-      setFeaturedShow(null);
-    }
-  }, [shows]);
+  // Render-based state adjustment block
+  const featuredShowIdAndRelease = featuredShow ? `${featuredShow.id}-${featuredShow.nextEpisodeRelease || ''}` : '';
+  const [prevShowIdAndRelease, setPrevShowIdAndRelease] = useState(featuredShowIdAndRelease);
+  if (featuredShowIdAndRelease !== prevShowIdAndRelease) {
+    setPrevShowIdAndRelease(featuredShowIdAndRelease);
+    setTimeLeft(null);
+  }
 
   // 2. Countdown Ticker
   useEffect(() => {
     if (!featuredShow || !featuredShow.nextEpisodeRelease) {
-      setTimeLeft(null);
       return;
     }
 
@@ -57,44 +94,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
 
     return () => clearInterval(interval);
   }, [featuredShow]);
-
-  // Pure CSS Confetti generator
-  const triggerCelebration = () => {
-    // Inject confetti elements
-    const colors = ['#a855f7', '#06b6d4', '#ec4899', '#eab308', '#22c55e'];
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.inset = '0';
-    container.style.pointerEvents = 'none';
-    container.style.zIndex = '999';
-    container.id = 'confetti-container';
-    document.body.appendChild(container);
-
-    for (let i = 0; i < 100; i++) {
-      const confetti = document.createElement('div');
-      confetti.className = 'confetti-particle';
-      confetti.style.position = 'absolute';
-      confetti.style.width = `${Math.random() * 8 + 6}px`;
-      confetti.style.height = `${Math.random() * 15 + 8}px`;
-      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.left = `${Math.random() * 100}vw`;
-      confetti.style.top = `-20px`;
-      confetti.style.opacity = `${Math.random() * 0.6 + 0.4}`;
-      confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-      
-      const duration = Math.random() * 3 + 2;
-      const delay = Math.random() * 2;
-      
-      confetti.style.animation = `fall ${duration}s linear ${delay}s infinite`;
-      container.appendChild(confetti);
-    }
-
-    // Clean up after 10 seconds
-    setTimeout(() => {
-      const el = document.getElementById('confetti-container');
-      if (el) el.remove();
-    }, 10000);
-  };
 
   // Continue Watching List
   const continueWatchingItems = Object.values(watchProgress)

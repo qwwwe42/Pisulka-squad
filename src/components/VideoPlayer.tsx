@@ -46,21 +46,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
   // Next episode reference
   const nextEpisode = show?.episodes.find(e => e.number === (episode?.number || 0) + 1);
 
-  // Determine initial player mode
-  useEffect(() => {
-    if (episode) {
-      setHtml5Error(null);
-      setShowAutoplayOverlay(false);
-      setIsPlaying(false);
-      
-      // Auto-detect mode
-      if (isGoogleDriveLink) {
-        setPlayerMode('embed');
-      } else {
-        setPlayerMode('html5');
-      }
+  const [prevEpisodeId, setPrevEpisodeId] = useState<string | null>(null);
+  if (episodeId !== prevEpisodeId) {
+    setPrevEpisodeId(episodeId);
+    setHtml5Error(null);
+    setShowAutoplayOverlay(false);
+    setIsPlaying(false);
+    
+    // Auto-detect mode
+    if (isGoogleDriveLink) {
+      setPlayerMode('embed');
+    } else {
+      setPlayerMode('html5');
     }
-  }, [episodeId, isGoogleDriveLink]);
+  }
 
   // Load saved progress for HTML5 player
   useEffect(() => {
@@ -70,6 +69,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
         videoRef.current.currentTime = savedProgress.watchedDuration;
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerMode, episodeId]);
 
   // Save progress automatically (HTML5 player) every 5 seconds
@@ -87,11 +87,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
     }, 5000);
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, playerMode, episodeId]);
 
   // Autoplay countdown timer
   useEffect(() => {
-    let timer: any;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     if (showAutoplayOverlay && nextEpisode) {
       if (autoplayCountdown > 0) {
         timer = setTimeout(() => setAutoplayCountdown(c => c - 1), 1000);
@@ -100,6 +101,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
       }
     }
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAutoplayOverlay, autoplayCountdown, nextEpisode]);
 
   if (!show || !episode) {
@@ -201,11 +203,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
     }
   };
 
-  const handlePlayNext = () => {
+  function handlePlayNext() {
     if (nextEpisode) {
       setActiveEpisodeId(nextEpisode.id);
     }
-  };
+  }
 
   const markAsWatchedManual = () => {
     updateWatchProgress(episode.id, showId, 100, 100);

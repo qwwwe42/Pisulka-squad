@@ -114,15 +114,22 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
       localStorage.setItem('penis_ink_nickname', trimmedNickname);
       await addComment(show.id, trimmedNickname, trimmedText);
       setCommentText('');
-    } catch (err) {
+    } catch {
       setCommentError('Не удалось отправить комментарий. Попробуйте еще раз.');
     }
   };
 
+  const [prevShowIdAndRelease, setPrevShowIdAndRelease] = useState(() => `${showId}-${show?.nextEpisodeRelease || ''}`);
+
+  const currentKey = `${showId}-${show?.nextEpisodeRelease || ''}`;
+  if (currentKey !== prevShowIdAndRelease) {
+    setPrevShowIdAndRelease(currentKey);
+    setNextReleaseTimeLeft(null);
+  }
+
   // Countdown timer for next episode
   useEffect(() => {
     if (!show || !show.nextEpisodeRelease) {
-      setNextReleaseTimeLeft(null);
       return;
     }
 
@@ -160,6 +167,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
   // Determine if episode is released
   const isEpisodeReleased = (episode: Episode) => {
     const releaseTime = new Date(episode.releaseDate).getTime();
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     return now >= releaseTime;
   };

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { 
   Plus, Trash2, Database, AlertCircle, RefreshCw, 
   Check, Info, Tv, CheckCircle2, Sparkles,
   Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock
 } from 'lucide-react';
-import type { Show, MinecraftPlayer } from '../types/streaming';
+import type { Show, MinecraftPlayer, NewsArticle, Episode } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
+
+const generateId = (prefix: string) => `${prefix}-${Date.now()}`;
 
 const DEFAULT_PLAYERS: MinecraftPlayer[] = [
   { name: 'screp', role: 'Админ', online: true },
@@ -81,7 +83,7 @@ export const AdminPanel: React.FC = () => {
       });
       setEditingShow(null);
       showStatusMsg(`Сериал «${editTitle.trim()}» успешно обновлен!`);
-    } catch (err) {
+    } catch {
       showStatusMsg('Ошибка при обновлении сериала', 'error');
     }
   };
@@ -138,7 +140,9 @@ export const AdminPanel: React.FC = () => {
   const [mcSteps, setMcSteps] = useState<{ title: string; description: string }[]>([]);
   const [mcPlayers, setMcPlayers] = useState<MinecraftPlayer[]>([]);
 
-  useEffect(() => {
+  const [prevMinecraftConfig, setPrevMinecraftConfig] = useState(minecraftConfig);
+  if (minecraftConfig !== prevMinecraftConfig) {
+    setPrevMinecraftConfig(minecraftConfig);
     if (minecraftConfig) {
       setMcServerIp(minecraftConfig.serverIp || '');
       setMcVersion(minecraftConfig.version || '');
@@ -147,7 +151,7 @@ export const AdminPanel: React.FC = () => {
       setMcSteps(minecraftConfig.steps || []);
       setMcPlayers(minecraftConfig.players || DEFAULT_PLAYERS);
     }
-  }, [minecraftConfig]);
+  }
 
   const handleSaveMinecraft = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,12 +203,12 @@ export const AdminPanel: React.FC = () => {
       setNewsTitle('');
       setNewsContent('');
       setNewsTag('');
-    } catch (err) {
+    } catch {
       showStatusMsg('Ошибка при сохранении новости', 'error');
     }
   };
 
-  const startEditingNews = (item: any) => {
+  const startEditingNews = (item: NewsArticle) => {
     setEditingNewsId(item.id);
     setNewsTitle(item.title);
     setNewsContent(item.content);
@@ -257,7 +261,7 @@ export const AdminPanel: React.FC = () => {
         setAdminTab('shows');
         showStatusMsg(`Сериал «${createdTitle}» добавлен! Теперь добавьте серии.`);
       }, 1500);
-    } catch (err) {
+    } catch {
       showStatusMsg('Ошибка при добавлении сериала', 'error');
     }
   };
@@ -297,7 +301,7 @@ export const AdminPanel: React.FC = () => {
       setEpUrl('');
       setEpThumb('');
       setEpStills([]);
-    } catch (err) {
+    } catch {
       showStatusMsg('Ошибка при добавлении серии', 'error');
     }
   };
@@ -341,7 +345,7 @@ export const AdminPanel: React.FC = () => {
 
       showStatusMsg('Расписание таймера обновлено!');
       setScheduleShowId('');
-    } catch (err) {
+    } catch {
       showStatusMsg('Ошибка при обновлении расписания', 'error');
     }
   };
@@ -372,7 +376,7 @@ export const AdminPanel: React.FC = () => {
     } else {
       // Add new actor
       const newActor = {
-        id: `actor-${Date.now()}`,
+        id: generateId('actor'),
         name: actorName.trim(),
         role: actorRole.trim(),
         imageUrl: actorImage.trim() || undefined,
@@ -430,7 +434,7 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleEditEpisodeClick = (ep: any) => {
+  const handleEditEpisodeClick = (ep: Episode) => {
     setEditingEpisodeId(ep.id);
     setEditEpNumber(ep.number);
     setEditEpTitle(ep.title);
@@ -471,7 +475,7 @@ export const AdminPanel: React.FC = () => {
       
       setEditingEpisodeId(null);
       showStatusMsg('Изменения серии сохранены!');
-    } catch (err) {
+    } catch {
       showStatusMsg('Ошибка при изменении серии', 'error');
     }
   };

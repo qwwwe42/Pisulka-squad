@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Course, Task, CalendarEvent, ProjectItem } from '../types';
 import { db } from '../firebase';
@@ -224,7 +225,7 @@ export const TrackerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           try {
             const localCourses: Course[] = JSON.parse(local);
             localCourses.forEach(c => saveCourseToCloud(c));
-          } catch (e) {
+          } catch {
             seedCourses.forEach(c => saveCourseToCloud(c));
           }
         }
@@ -250,7 +251,7 @@ export const TrackerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           try {
             const localEvents: CalendarEvent[] = JSON.parse(local);
             localEvents.forEach(e => saveEventToCloud(e));
-          } catch (e) {
+          } catch {
             seedEvents.forEach(e => saveEventToCloud(e));
           }
         }
@@ -276,7 +277,7 @@ export const TrackerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           try {
             const localItems: ProjectItem[] = JSON.parse(local);
             localItems.forEach(p => saveProjectItemToCloud(p));
-          } catch (e) {
+          } catch {
             seedProjectItems.forEach(p => saveProjectItemToCloud(p));
           }
         }
@@ -324,39 +325,39 @@ export const TrackerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   // Firestore Write helper wrapper
-  const saveCourseToCloud = async (course: Course) => {
+  async function saveCourseToCloud(course: Course) {
     try {
       await setDoc(doc(db, 'courses', course.id), course);
-    } catch (e) {
-      console.warn("Error uploading course to Firestore (offline?):", e);
+    } catch {
+      console.warn("Error uploading course to Firestore (offline?):");
     }
-  };
+  }
 
-  const deleteCourseFromCloud = async (id: string) => {
+  async function deleteCourseFromCloud(id: string) {
     try {
       await deleteDoc(doc(db, 'courses', id));
-    } catch (e) {
-      console.warn("Error deleting course from Firestore (offline?):", e);
+    } catch {
+      console.warn("Error deleting course from Firestore (offline?):");
     }
-  };
+  }
 
-  const saveEventToCloud = async (event: CalendarEvent) => {
+  async function saveEventToCloud(event: CalendarEvent) {
     try {
       await setDoc(doc(db, 'events', event.id), event);
-    } catch (e) {
-      console.warn("Error uploading event to Firestore (offline?):", e);
+    } catch {
+      console.warn("Error uploading event to Firestore (offline?):");
     }
-  };
+  }
 
-  const deleteEventFromCloud = async (id: string) => {
+  async function deleteEventFromCloud(id: string) {
     try {
       await deleteDoc(doc(db, 'events', id));
-    } catch (e) {
-      console.warn("Error deleting event from Firestore (offline?):", e);
+    } catch {
+      console.warn("Error deleting event from Firestore (offline?):");
     }
-  };
+  }
 
-  const saveProjectItemToCloud = async (item: ProjectItem) => {
+  async function saveProjectItemToCloud(item: ProjectItem) {
     try {
       // Limit size of files synced to Firestore to avoid Firestore document limits (1MB)
       if (item.fileData && item.fileData.length > 800 * 1024) {
@@ -367,10 +368,10 @@ export const TrackerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
       await setDoc(doc(db, 'project_items', item.id), item);
-    } catch (e) {
-      console.warn("Error uploading project item to Firestore (offline?):", e);
+    } catch {
+      console.warn("Error uploading project item to Firestore (offline?):");
     }
-  };
+  }
 
   const deleteProjectItemFromCloud = async (id: string) => {
     try {
