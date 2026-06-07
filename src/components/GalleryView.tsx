@@ -16,6 +16,22 @@ export const GalleryView: React.FC = () => {
   // Lightbox state
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
 
+  // Custom Modals State for delete verification
+  const [photoToDeleteId, setPhotoToDeleteId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAdminRequired, setShowAdminRequired] = useState(false);
+
+  const requestDelete = (itemId: string) => {
+    // If already authenticated as admin, show custom confirmation modal
+    if (sessionStorage.getItem('penis_ink_admin') === 'true') {
+      setPhotoToDeleteId(itemId);
+      setShowDeleteConfirm(true);
+    } else {
+      // If not admin, show custom warning modal
+      setShowAdminRequired(true);
+    }
+  };
+
   const handleOpenUploadModal = () => {
     setIsUploadModalOpen(true);
     setSelectedImage(null);
@@ -132,11 +148,7 @@ export const GalleryView: React.FC = () => {
                       })}
                     </span>
                     <button
-                      onClick={() => {
-                        if (confirm('Вы уверены, что хотите удалить это фото?')) {
-                          deleteGalleryItem(item.id);
-                        }
-                      }}
+                      onClick={() => requestDelete(item.id)}
                       className="p-1 rounded hover:bg-rose-955/20 text-slate-700 hover:text-rose-500 transition-colors cursor-pointer"
                       title="Удалить фото"
                     >
@@ -325,18 +337,90 @@ export const GalleryView: React.FC = () => {
               })}
             </span>
             <button
-              onClick={() => {
-                if (confirm('Вы уверены, что хотите удалить это фото?')) {
-                  const idToDelete = activePhoto.id;
-                  setActivePhotoIndex(null);
-                  deleteGalleryItem(idToDelete);
-                }
-              }}
+              onClick={() => requestDelete(activePhoto.id)}
               className="flex items-center gap-1 py-1 px-2.5 rounded-lg border border-rose-950/30 hover:bg-rose-950/20 text-slate-600 hover:text-rose-500 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Удалить</span>
             </button>
+          </div>
+        </div>
+      )}
+      {/* CUSTOM DELETE CONFIRMATION MODAL */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 m-4 animate-[scaleIn_0.2s_ease-out]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                Удалить изображение?
+              </h3>
+            </div>
+            
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Вы уверены, что хотите удалить это фото из галереи? Это действие необратимо и удалит изображение у всех участников.
+            </p>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setPhotoToDeleteId(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-800 hover:bg-slate-955 hover:border-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold transition-all cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (photoToDeleteId) {
+                    if (activePhotoIndex !== null && gallery[activePhotoIndex]?.id === photoToDeleteId) {
+                      setActivePhotoIndex(null);
+                    }
+                    deleteGalleryItem(photoToDeleteId);
+                  }
+                  setShowDeleteConfirm(false);
+                  setPhotoToDeleteId(null);
+                }}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-950/20 transition-all cursor-pointer"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM ADMIN REQUIRED WARNING MODAL */}
+      {showAdminRequired && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 m-4 animate-[scaleIn_0.2s_ease-out]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                <User className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                Доступ ограничен
+              </h3>
+            </div>
+            
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Удаление изображений доступно только администраторам. Пожалуйста, авторизуйтесь в <strong>Панели Админа</strong> (кнопка в левом нижнем углу меню).
+            </p>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAdminRequired(false)}
+                className="w-full py-2.5 bg-purple-650 hover:bg-purple-550 text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-950/20 transition-all cursor-pointer text-center"
+              >
+                Понятно
+              </button>
+            </div>
           </div>
         </div>
       )}

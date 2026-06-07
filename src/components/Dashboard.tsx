@@ -76,9 +76,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
 
     const releaseTime = new Date(featuredShow.nextEpisodeRelease!).getTime();
     const initialDifference = releaseTime - new Date().getTime();
+    const celebratedKey = `penis_ink_celebrated_${featuredShow.id}_${featuredShow.nextEpisodeRelease}`;
 
-    // If the release date has already passed on initial load/mount, do not trigger confetti
+    // If the release date has already passed on initial load/mount, mark it as celebrated and do not trigger confetti
     if (initialDifference <= 0) {
+      setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      localStorage.setItem(celebratedKey, 'true');
+      return;
+    }
+
+    // If it has already been celebrated, set state to 0 and do not trigger confetti or start interval
+    if (localStorage.getItem(celebratedKey) === 'true') {
       setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       return;
     }
@@ -90,7 +98,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
       if (difference <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         clearInterval(interval);
-        triggerCelebration();
+        
+        // Double-check to prevent multiple triggers in case of double-renders or other race conditions
+        if (localStorage.getItem(celebratedKey) !== 'true') {
+          localStorage.setItem(celebratedKey, 'true');
+          triggerCelebration();
+        }
       } else {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
