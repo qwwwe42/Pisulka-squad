@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  --color-ide-bg-sidebar: #0f1012;
+  --color-ide-bg-workspace: #17181c;
+  --color-ide-border: #24262c;
+  --color-ide-tab-active: #2b2d31;
+  --color-ide-text-main: #c9d1d9;
+  --color-ide-text-muted: #8b949e;
+  --color-ide-accent: #58a6ff;
+  --color-ide-green: #3fb950;
+  --color-ide-amber: #d29922;
+  --color-ide-rose: #f85149;
+}
+
+@layer base {
+  body {
+    background-color: #17181c;
+    color: #c9d1d9;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+}
+
+/* IDE Panel styles */
+.ide-sidebar {
+  background-color: #0f1012;
+  border-color: #24262c;
+}
+
+.ide-workspace {
+  background-color: #17181c;
+}
+
+.ide-border {
+  border-color: #24262c;
+}
+
+/* Scrollbars - matching VSCode / Antigravity IDE styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f1012;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 148, 158, 0.15);
+  border: 2px solid #0f1012;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 148, 158, 0.3);
+}
+
+/* IDE Input styling */
+.ide-input {
+  background-color: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: #c9d1d9;
+  font-size: 0.8125rem;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.ide-input:focus {
+  outline: none;
+  border-color: #a855f7;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+}
+
+/* Flat Button style */
+.ide-btn-primary {
+  background-color: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: background-color 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+
+.ide-btn-primary:hover {
+  background-color: #30363d;
+  border-color: #8b949e;
+}
+
+.ide-btn-blue {
+  background-color: rgba(56, 139, 253, 0.1);
+  color: #58a6ff;
+  border: 1px solid rgba(56, 139, 253, 0.4);
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.ide-btn-blue:hover {
+  background-color: rgba(56, 139, 253, 0.2);
+  border-color: #58a6ff;
+}
+
+/* Progress bar styles */
+.ide-progress-track {
+  height: 4px;
+  width: 100%;
+  background-color: #21262d;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.ide-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.4s ease-out;
+}
+
+/* Fade in animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
