@@ -28,6 +28,29 @@ export const AdminPanel: React.FC = () => {
     minecraftConfig, updateMinecraftConfig
   } = useStreaming();
 
+  // Unique actors pool database aggregated from all shows
+  const uniqueActorsPool = React.useMemo(() => {
+    const pool: { name: string; imageUrl?: string; imageUrls?: string[]; filmography?: string }[] = [];
+    const names = new Set<string>();
+
+    shows.forEach(show => {
+      (show.actors || []).forEach(actor => {
+        const normalizedName = actor.name.trim();
+        if (normalizedName && !names.has(normalizedName)) {
+          names.add(normalizedName);
+          pool.push({
+            name: actor.name,
+            imageUrl: actor.imageUrl,
+            imageUrls: actor.imageUrls,
+            filmography: actor.filmography
+          });
+        }
+      });
+    });
+
+    return pool.sort((a, b) => a.name.localeCompare(b.name));
+  }, [shows]);
+
   // Tabs
   const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft'>('shows');
 
@@ -966,6 +989,39 @@ export const AdminPanel: React.FC = () => {
                   
                   {/* New Actor Form */}
                   <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 space-y-4 font-sans font-sans">
+                    
+                    {/* Database selection dropdown */}
+                    {uniqueActorsPool.length > 0 && (
+                      <div className="space-y-1.5 border-b border-slate-800/40 pb-3">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Выбрать из существующей базы актеров
+                        </label>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const selectedActorName = e.target.value;
+                            const found = uniqueActorsPool.find(a => a.name === selectedActorName);
+                            if (found) {
+                              setActorName(found.name);
+                              setActorImage(found.imageUrl || '');
+                              setActorGallery(found.imageUrls || []);
+                              setActorFilmography(found.filmography || '');
+                              // Leave actorRole alone to allow setting the show-specific role
+                              showStatusMsg(`Данные актёра «${found.name}» успешно загружены!`);
+                            }
+                          }}
+                          className="w-full ide-input cursor-pointer text-xs"
+                        >
+                          <option value="">-- Выберите актёра для автозаполнения полей --</option>
+                          {uniqueActorsPool.map(a => (
+                            <option key={a.name} value={a.name}>
+                              {a.name} {a.filmography ? `(${a.filmography})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Имя актёра *</label>
