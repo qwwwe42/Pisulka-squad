@@ -74,8 +74,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
       return;
     }
 
+    const releaseTime = new Date(featuredShow.nextEpisodeRelease!).getTime();
+    const initialDifference = releaseTime - new Date().getTime();
+
+    // If the release date has already passed on initial load/mount, do not trigger confetti
+    if (initialDifference <= 0) {
+      setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      return;
+    }
+
     const interval = setInterval(() => {
-      const releaseTime = new Date(featuredShow.nextEpisodeRelease!).getTime();
       const now = new Date().getTime();
       const difference = releaseTime - now;
 
