@@ -6,15 +6,14 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { AdminPanel } from './components/AdminPanel';
 import { MinecraftView } from './components/MinecraftView';
 import { GalleryView } from './components/GalleryView';
-import { Settings, Home, Cloud, CloudOff, Menu, X, Tv, Gamepad2, Image, Sun, Moon } from 'lucide-react';
+import { Settings, Home, Menu, X, Tv, Gamepad2, Image, Sun, Moon } from 'lucide-react';
 
 function AppContent() {
   const {
     activeShowId,
     activeEpisodeId,
     setActiveShowId,
-    setActiveEpisodeId,
-    isFirebaseConnected
+    setActiveEpisodeId
   } = useStreaming();
 
   const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'gallery' | 'minecraft' | 'admin'>('home');
@@ -28,7 +27,7 @@ function AppContent() {
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('penis_ink_theme');
-    return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+    return (saved === 'light' || saved === 'dark') ? saved : 'light';
   });
 
   useEffect(() => {
@@ -56,265 +55,248 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen flex bg-bg-app text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-bg-app text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200">
 
-      {/* Backdrop for Mobile Sidebar */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+      {/* Flex row container that wraps sidebar and main content area */}
+      <div className="flex-1 flex flex-row min-w-0 w-full relative">
+        {/* Backdrop for Mobile Sidebar */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
 
-      {/* LEFT SIDEBAR NAVIGATION */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 md:my-4 md:ml-4 md:rounded-3xl border border-border-color bg-bg-card p-6 flex flex-col gap-8 shrink-0 transition-all duration-300 md:translate-x-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] md:shadow-soft ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-      >
-        {/* Sidebar Close button on mobile */}
-        <button
-          onClick={() => setIsMobileMenuOpen(false)}
-          className="absolute top-4 right-4 md:hidden p-1.5 rounded-lg bg-bg-app border border-border-color text-text-secondary hover:text-text-primary transition-all cursor-pointer"
+        {/* LEFT SIDEBAR NAVIGATION */}
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 w-64 md:my-4 md:ml-4 md:rounded-3xl border border-border-color bg-bg-card p-6 flex flex-col gap-8 shrink-0 transition-all duration-300 md:translate-x-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] md:shadow-soft ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
         >
-          <X className="w-4 h-4" />
-        </button>
-
-        {/* Brand Logo */}
-        <div
-          className="flex items-center group cursor-pointer select-none max-w-[220px] h-24 overflow-hidden"
-          onClick={() => {
-            setActiveTab('home');
-            handleBackToCatalog();
-            setIsMobileMenuOpen(false);
-          }}
-        >
-          <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02] theme-logo" />
-        </div>
-
-        {/* Navigation Menu */}
-        <nav className="flex-1 flex flex-col gap-1.5">
-          {/* Главная */}
+          {/* Sidebar Close button on mobile */}
           <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="absolute top-4 right-4 md:hidden p-1.5 rounded-lg bg-bg-app border border-border-color text-text-secondary hover:text-text-primary transition-all cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          {/* Brand Logo */}
+          <div
+            className="flex items-center group cursor-pointer select-none max-w-[220px] h-24 overflow-hidden"
             onClick={() => {
               setActiveTab('home');
               handleBackToCatalog();
               setIsMobileMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'home' && !activeShowId
-                ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
-                : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
-              }`}
           >
-            <Home className="w-4 h-4" />
-            <span>Главная</span>
-          </button>
-
-          {/* Сериалы */}
-          <button
-            onClick={() => {
-              setActiveTab('shows');
-              handleBackToCatalog();
-              setIsMobileMenuOpen(false);
-            }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'shows' || activeShowId
-                ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
-                : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
-              }`}
-          >
-            <Tv className="w-4 h-4" />
-            <span>Сериалы</span>
-          </button>
-
-          {/* Майнкрафт */}
-          <button
-            onClick={() => {
-              setActiveTab('minecraft');
-              handleBackToCatalog();
-              setIsMobileMenuOpen(false);
-            }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'minecraft'
-                ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
-                : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
-              }`}
-          >
-            <Gamepad2 className="w-4 h-4" />
-            <span>Майнкрафт</span>
-          </button>
-
-          {/* Галерея */}
-          <button
-            onClick={() => {
-              setActiveTab('gallery');
-              handleBackToCatalog();
-              setIsMobileMenuOpen(false);
-            }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'gallery'
-                ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
-                : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
-              }`}
-          >
-            <Image className="w-4 h-4" />
-            <span>Галерея</span>
-          </button>
-        </nav>
-
-        {/* Bottom Panel (Admin, Status & Theme) */}
-        <div className="border-t border-border-color pt-4 space-y-3">
-          {/* Admin Panel button */}
-          <button
-            onClick={() => {
-              if (isAdminAuthenticated) {
-                setActiveTab('admin');
-                handleBackToCatalog();
-                setIsMobileMenuOpen(false);
-              } else {
-                setShowPasswordModal(true);
-              }
-            }}
-            className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'admin'
-                ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
-                : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
-              }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Панель админа</span>
-          </button>
-
-          {/* Firestore Connection status */}
-          <div
-            className={`px-4 py-2.5 rounded-xl border flex items-center gap-2.5 transition-all text-[10px] font-bold ${isFirebaseConnected
-                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500'
-                : 'bg-amber-500/10 border-amber-500/25 text-amber-500'
-              }`}
-          >
-            {isFirebaseConnected ? (
-              <>
-                <Cloud className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className="truncate">База онлайн</span>
-              </>
-            ) : (
-              <>
-                <CloudOff className="w-4 h-4 text-amber-500 shrink-0" />
-                <span className="truncate">База оффлайн</span>
-              </>
-            )}
+            <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02] theme-logo" />
           </div>
 
-          {/* Theme Switcher Segmented Control */}
-          <div className="flex bg-bg-app border border-border-color p-0.5 rounded-xl text-[10px] font-bold text-text-secondary select-none">
+          {/* Navigation Menu */}
+          <nav className="flex-1 flex flex-col gap-1.5">
+            {/* Главная */}
             <button
-              onClick={() => setTheme('light')}
-              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                theme === 'light' 
-                  ? 'bg-accent-color text-white shadow-soft font-extrabold' 
-                  : 'hover:text-text-primary'
-              }`}
-            >
-              <Sun className="w-3.5 h-3.5" />
-              <span>Светлая</span>
-            </button>
-            <button
-              onClick={() => setTheme('dark')}
-              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                theme === 'dark' 
-                  ? 'bg-accent-color text-white shadow-soft font-extrabold' 
-                  : 'hover:text-text-primary'
-              }`}
-            >
-              <Moon className="w-3.5 h-3.5" />
-              <span>Тёмная</span>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-
-        {/* MOBILE HEADER */}
-        <header className="md:hidden sticky top-0 z-30 h-16 bg-bg-card/90 backdrop-blur-md border-b border-border-color px-6 flex items-center justify-between shrink-0 transition-colors duration-200">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="p-1.5 rounded-lg bg-bg-app border border-border-color text-text-secondary hover:text-text-primary cursor-pointer"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div 
-              className="flex items-center h-12 cursor-pointer select-none"
               onClick={() => {
                 setActiveTab('home');
                 handleBackToCatalog();
+                setIsMobileMenuOpen(false);
               }}
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'home' && !activeShowId
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                }`}
             >
-              <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain theme-logo" />
+              <Home className="w-5 h-5" />
+              <span>Главная</span>
+            </button>
+
+            {/* Сериалы */}
+            <button
+              onClick={() => {
+                setActiveTab('shows');
+                handleBackToCatalog();
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'shows' || activeShowId
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                }`}
+            >
+              <Tv className="w-5 h-5" />
+              <span>Сериалы</span>
+            </button>
+
+            {/* Майнкрафт */}
+            <button
+              onClick={() => {
+                setActiveTab('minecraft');
+                handleBackToCatalog();
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'minecraft'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                }`}
+            >
+              <Gamepad2 className="w-5 h-5" />
+              <span>Майнкрафт</span>
+            </button>
+
+            {/* Галерея */}
+            <button
+              onClick={() => {
+                setActiveTab('gallery');
+                handleBackToCatalog();
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'gallery'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                }`}
+            >
+              <Image className="w-5 h-5" />
+              <span>Галерея</span>
+            </button>
+          </nav>
+
+          {/* Bottom Panel (Admin, Status & Theme) */}
+          <div className="border-t border-border-color pt-4 space-y-3">
+            {/* Admin Panel button */}
+            <button
+              onClick={() => {
+                if (isAdminAuthenticated) {
+                  setActiveTab('admin');
+                  handleBackToCatalog();
+                  setIsMobileMenuOpen(false);
+                } else {
+                  setShowPasswordModal(true);
+                }
+              }}
+              className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'admin'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                }`}
+            >
+              <Settings className="w-4 h-4" />
+              <span>Панель админа</span>
+            </button>
+
+            {/* Theme Switcher Segmented Control */}
+            <div className="flex bg-bg-app border border-border-color p-0.5 rounded-xl text-[10px] font-bold text-text-secondary select-none">
+              <button
+                onClick={() => setTheme('light')}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  theme === 'light' 
+                    ? 'bg-accent-color text-white shadow-soft font-extrabold' 
+                    : 'hover:text-text-primary'
+                }`}
+              >
+                <Sun className="w-3.5 h-3.5" />
+                <span>Светлая</span>
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  theme === 'dark' 
+                    ? 'bg-accent-color text-white shadow-soft font-extrabold' 
+                    : 'hover:text-text-primary'
+                }`}
+              >
+                <Moon className="w-3.5 h-3.5" />
+                <span>Тёмная</span>
+              </button>
             </div>
           </div>
+        </aside>
 
-          <div className="flex items-center gap-2">
-            {/* Show simple category/indicator */}
-            <span className="text-[10px] font-bold uppercase tracking-wider text-accent-color bg-accent-light border border-accent-color/20 px-2.5 py-0.5 rounded-lg font-sans">
-              {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'gallery' ? 'Галерея' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
-            </span>
-          </div>
-        </header>
+        {/* MAIN CONTENT AREA */}
+        <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Viewport content */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-10 py-6 overflow-y-auto">
-          {activeTab === 'admin' ? (
-            // Render Admin Panel
-            <AdminPanel />
-          ) : activeEpisodeId && activeShowId ? (
-            // Render Video Player (with back-breadcrumb details view)
-            <div className="space-y-6">
-              <VideoPlayer
-                showId={activeShowId}
-                episodeId={activeEpisodeId}
-                onClose={handleClosePlayer}
-              />
+          {/* MOBILE HEADER */}
+          <header className="md:hidden sticky top-0 z-30 h-16 bg-bg-card/90 backdrop-blur-md border-b border-border-color px-6 flex items-center justify-between shrink-0 transition-colors duration-200">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-1.5 rounded-lg bg-bg-app border border-border-color text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div 
+                className="flex items-center h-12 cursor-pointer select-none"
+                onClick={() => {
+                  setActiveTab('home');
+                  handleBackToCatalog();
+                }}
+              >
+                <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain theme-logo" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Show simple category/indicator */}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-accent-color bg-accent-light border border-accent-color/20 px-2.5 py-0.5 rounded-lg font-sans">
+                {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'gallery' ? 'Галерея' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
+              </span>
+            </div>
+          </header>
+
+          {/* Viewport content */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-10 py-6 overflow-y-auto">
+            {activeTab === 'admin' ? (
+              // Render Admin Panel
+              <AdminPanel />
+            ) : activeEpisodeId && activeShowId ? (
+              // Render Video Player (with back-breadcrumb details view)
+              <div className="space-y-6">
+                <VideoPlayer
+                  showId={activeShowId}
+                  episodeId={activeEpisodeId}
+                  onClose={handleClosePlayer}
+                />
+                <ShowDetails
+                  showId={activeShowId}
+                  onBack={handleBackToCatalog}
+                  onSelectEpisode={(epId) => handleSelectEpisode(activeShowId, epId)}
+                  isEpisodeActive={true}
+                />
+              </div>
+            ) : activeShowId ? (
+              // Render Show Details
               <ShowDetails
                 showId={activeShowId}
                 onBack={handleBackToCatalog}
                 onSelectEpisode={(epId) => handleSelectEpisode(activeShowId, epId)}
-                isEpisodeActive={true}
               />
-            </div>
-          ) : activeShowId ? (
-            // Render Show Details
-            <ShowDetails
-              showId={activeShowId}
-              onBack={handleBackToCatalog}
-              onSelectEpisode={(epId) => handleSelectEpisode(activeShowId, epId)}
-            />
-          ) : activeTab === 'gallery' ? (
-            // Render Gallery View
-            <GalleryView />
-          ) : activeTab === 'minecraft' ? (
-            // Render Minecraft View
-            <MinecraftView />
-          ) : activeTab === 'shows' ? (
-            // Render Shows Catalog
-            <Dashboard
-              onSelectShow={handleSelectShow}
-              onSelectEpisode={handleSelectEpisode}
-              mode="catalog"
-            />
-          ) : (
-            // Render Home Dashboard
-            <Dashboard
-              onSelectShow={handleSelectShow}
-              onSelectEpisode={handleSelectEpisode}
-              mode="home"
-            />
-          )}
-        </main>
-
-        {/* Footer */}
-        <footer className="h-12 border-t border-border-color px-6 md:px-10 flex items-center justify-between text-[10px] text-text-muted shrink-0 font-sans mt-auto transition-colors duration-200">
-          <span>&copy; {new Date().getFullYear()} pisulka-squad. Все права сохранены.</span>
-          <span className="font-mono text-accent-color/85">v1.1.0 (Google Drive Streamer)</span>
-        </footer>
+            ) : activeTab === 'gallery' ? (
+              // Render Gallery View
+              <GalleryView />
+            ) : activeTab === 'minecraft' ? (
+              // Render Minecraft View
+              <MinecraftView />
+            ) : activeTab === 'shows' ? (
+              // Render Shows Catalog
+              <Dashboard
+                onSelectShow={handleSelectShow}
+                onSelectEpisode={handleSelectEpisode}
+                mode="catalog"
+              />
+            ) : (
+              // Render Home Dashboard
+              <Dashboard
+                onSelectShow={handleSelectShow}
+                onSelectEpisode={handleSelectEpisode}
+                mode="home"
+              />
+            )}
+          </main>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="h-12 border-t border-border-color px-6 md:px-10 flex items-center justify-between text-[10px] text-text-muted shrink-0 font-sans mt-auto transition-colors duration-200">
+        <span>&copy; {new Date().getFullYear()} pisulka-squad. Все права сохранены.</span>
+        <span className="font-mono text-accent-color/85">v1.1.0 (Google Drive Streamer)</span>
+      </footer>
 
       {/* 4. Password Protection Modal */}
       {showPasswordModal && (

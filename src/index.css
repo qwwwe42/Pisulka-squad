@@ -3,22 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Default is Dark theme (preserving the user's default theme experience) */
-  --bg-app: #0E0E10;
-  --bg-card: #1A1A1D;
-  --text-primary: #FFFFFF;
-  --text-secondary: #C9C9D1;
-  --text-muted: #727282;
-  --border-color: #24242B;
-  --shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.45), 0 4px 12px -5px rgba(0, 0, 0, 0.35);
-  --shadow-hover: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 8px 20px -5px rgba(0, 0, 0, 0.55);
-  --accent-color: #a78bfa;
-  --accent-hover: #c084fc;
-  --accent-light: rgba(167, 139, 250, 0.08);
-}
-
-html[data-theme='light'] {
-  /* Light theme */
+  /* Default is Light theme */
   --bg-app: #F5F6F8;
   --bg-card: #FFFFFF;
   --text-primary: #111114;
@@ -30,6 +15,49 @@ html[data-theme='light'] {
   --accent-color: #7c3aed;
   --accent-hover: #6d28d9;
   --accent-light: rgba(124, 58, 237, 0.06);
+
+  /* Override slate colors for light theme compatibility in Admin Panel and Modals */
+  --color-slate-50: #111114;
+  --color-slate-100: #111114;
+  --color-slate-200: #212126;
+  --color-slate-300: #3a3a42;
+  --color-slate-400: #575762;
+  --color-slate-500: #8E8E9F;
+  --color-slate-600: #8E8E9F;
+  --color-slate-700: #E2E4E9;
+  --color-slate-800: #E2E4E9;
+  --color-slate-850: #E2E4E9;
+  --color-slate-900: #FFFFFF;
+  --color-slate-950: #F5F6F8;
+}
+
+html[data-theme='dark'] {
+  /* Dark theme */
+  --bg-app: #0E0E10;
+  --bg-card: #1A1A1D;
+  --text-primary: #FFFFFF;
+  --text-secondary: #C9C9D1;
+  --text-muted: #727282;
+  --border-color: #24242B;
+  --shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.45), 0 4px 12px -5px rgba(0, 0, 0, 0.35);
+  --shadow-hover: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 8px 20px -5px rgba(0, 0, 0, 0.55);
+  --accent-color: #a78bfa;
+  --accent-hover: #c084fc;
+  --accent-light: rgba(167, 139, 250, 0.08);
+
+  /* Restore slate colors for dark theme */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-850: #172030;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
 }
 
 @theme {
@@ -179,6 +207,7 @@ html[data-theme='light'] {
 }
 
 /* Dynamic Logo Theme Inversion */
+html:not([data-theme='dark']) .theme-logo,
 html[data-theme='light'] .theme-logo {
   filter: invert(1);
 }

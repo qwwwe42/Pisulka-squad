@@ -3,7 +3,8 @@ import { useStreaming } from '../context/StreamingContext';
 import { 
   Plus, Trash2, Database, AlertCircle, RefreshCw, 
   Check, Info, Tv, CheckCircle2, Sparkles,
-  Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock
+  Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock,
+  Cloud, CloudOff
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
@@ -573,10 +574,32 @@ export const AdminPanel: React.FC = () => {
           </nav>
         </div>
 
-        {/* Database status information */}
-        <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-850/60 text-[10px] text-slate-500 leading-relaxed">
-          <Info className="w-3.5 h-3.5 text-purple-400 mb-1 inline mr-1" />
-          <span>Вы можете быстро загрузить демо-сериалы с тестовыми видеофайлами в разделе «База данных».</span>
+        <div className="flex flex-col gap-3">
+          {/* Firestore Connection status */}
+          <div
+            className={`px-3 py-2.5 rounded-xl border flex items-center gap-2.5 transition-all text-[10px] font-bold ${isFirebaseConnected
+                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500'
+                : 'bg-amber-500/10 border-amber-500/25 text-amber-500'
+              }`}
+          >
+            {isFirebaseConnected ? (
+              <>
+                <Cloud className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="truncate">База онлайн</span>
+              </>
+            ) : (
+              <>
+                <CloudOff className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="truncate">База оффлайн</span>
+              </>
+            )}
+          </div>
+
+          {/* Database status information */}
+          <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-850/60 text-[10px] text-slate-500 leading-relaxed">
+            <Info className="w-3.5 h-3.5 text-purple-400 mb-1 inline mr-1" />
+            <span>Вы можете быстро загрузить демо-сериалы с тестовыми видеофайлами в разделе «База данных».</span>
+          </div>
         </div>
       </div>
 
