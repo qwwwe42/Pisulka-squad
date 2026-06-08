@@ -84,14 +84,14 @@ function AppContent() {
 
           {/* Brand Logo */}
           <div
-            className="flex items-center group cursor-pointer select-none max-w-[220px] h-24 overflow-hidden"
+            className="flex items-center justify-center group cursor-pointer select-none w-full max-w-[500px] h-[200px] overflow-hidden"
             onClick={() => {
               setActiveTab('home');
               handleBackToCatalog();
               setIsMobileMenuOpen(false);
             }}
           >
-            <img src="/logo.png" alt="Varicose Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02] theme-logo" />
+            <img src="/logo.png" alt="Varicose Squad Logo" className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] theme-logo" />
           </div>
 
           {/* Navigation Menu */}
