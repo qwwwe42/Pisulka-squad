@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStreaming, getNewsAverageRating, getOrCreateUserId } from '../context/StreamingContext';
+import type { Comment } from '../types/streaming';
 import { 
   Newspaper, Star, MessageSquare, Send, Calendar, 
-  ChevronDown, ChevronUp, Sparkles, Award, X, CornerDownRight, Plus
+  Award, X, CornerDownRight, Plus
 } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
 
@@ -63,11 +64,46 @@ const formatNewsDate = (dateStr: string) => {
   }
 };
 
+interface CommentNode {
+  comment: Comment;
+  replies: CommentNode[];
+}
+
+const buildCommentTree = (comments: Comment[]): CommentNode[] => {
+  const commentMap: Record<string, CommentNode> = {};
+  const roots: CommentNode[] = [];
+
+  comments.forEach((c) => {
+    commentMap[c.id] = { comment: c, replies: [] };
+  });
+
+  comments.forEach((c) => {
+    const node = commentMap[c.id];
+    if (c.parentId && commentMap[c.parentId]) {
+      commentMap[c.parentId].replies.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  // Sort top-level comments: newest first
+  roots.sort((a, b) => new Date(b.comment.createdAt).getTime() - new Date(a.comment.createdAt).getTime());
+
+  // Sort replies recursively: oldest first
+  const sortReplies = (node: CommentNode) => {
+    node.replies.sort((a, b) => new Date(a.comment.createdAt).getTime() - new Date(b.comment.createdAt).getTime());
+    node.replies.forEach(sortReplies);
+  };
+  roots.forEach(sortReplies);
+
+  return roots;
+};
+
 export const NewsView: React.FC = () => {
   const { news, rateNews, addNewsComment, addNews } = useStreaming();
   
-  // Track expanded state for news articles
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Track selected news article for full view
+  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
 
   // Comments form local states
   const [nickname, setNickname] = useState(() => {
@@ -125,16 +161,8 @@ export const NewsView: React.FC = () => {
     }
   };
 
-  const toggleExpand = (id: string) => {
-    setCommentError('');
-    setCommentText('');
-    setReplyTo(null);
-    setExpandedId(prev => (prev === id ? null : id));
-  };
-
   const handleReplyClick = (comment: any, newsId: string) => {
-    const parentId = comment.parentId || comment.id;
-    setReplyTo({ commentId: parentId, author: comment.author });
+    setReplyTo({ commentId: comment.id, author: comment.author });
     const textarea = document.getElementById(`comment-${newsId}`);
     if (textarea) {
       textarea.focus();
@@ -173,7 +201,6 @@ export const NewsView: React.FC = () => {
       setNewsTag('');
       setNewsContent('');
       setNewsImage('');
-      
       setTimeout(() => {
         setShowWriteForm(false);
         setFormSuccess('');
@@ -184,6 +211,103 @@ export const NewsView: React.FC = () => {
     }
   };
 
+  // Recursive renderer for tree comments
+  const renderCommentNode = (node: CommentNode, depth: number = 0) => {
+    const comment = node.comment;
+    const isOwner = comment.userId === currentUserId;
+    const gradient = getAvatarGradient(comment.author);
+    const initials = getInitials(comment.author);
+    
+    const indentClass = depth === 0 
+      ? '' 
+      : depth > 3 
+        ? 'pl-1 ml-1.5 mt-3' 
+        : 'pl-3 md:pl-5 border-l-2 border-accent-color/10 ml-3.5 md:ml-4.5 mt-3';
+
+    return (
+      <div key={comment.id} className="space-y-3">
+        {/* Comment Card */}
+        <div className={`flex gap-3 bg-bg-app border border-border-color rounded-2xl p-3.5 hover:border-accent-color/20 transition-all group font-sans shadow-soft ${
+          depth > 0 ? 'bg-bg-app/50 border-border-color/70' : ''
+        }`}>
+          <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradient} text-white font-bold flex items-center justify-center text-[9px] shrink-0 uppercase tracking-wider`}>
+            {initials}
+          </div>
+
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-baseline gap-1.5 flex-wrap">
+                <span className="text-xs font-bold text-text-primary truncate">{comment.author}</span>
+                {isOwner && (
+                  <span className="text-[8px] px-1 py-0.2 rounded bg-accent-light text-accent-color border border-accent-color/10 font-semibold font-mono">
+                    Вы
+                  </span>
+                )}
+                {comment.replyToAuthor && depth > 0 && (
+                  <span className="text-[9px] text-accent-color font-bold flex items-center gap-0.5 font-sans">
+                    <CornerDownRight className="w-2.5 h-2.5 text-accent-color/50" />
+                    <span>ответил @{comment.replyToAuthor}</span>
+                  </span>
+                )}
+              </div>
+              <span className="text-[8px] text-text-muted font-mono shrink-0">
+                {formatCommentDate(comment.createdAt)}
+              </span>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap break-words select-text font-sans">
+              {comment.text}
+            </p>
+            
+            <button
+              type="button"
+              onClick={() => handleReplyClick(comment, selectedNewsId || '')}
+              className="text-[9px] font-bold text-accent-color hover:underline cursor-pointer pt-1 flex items-center gap-0.5"
+            >
+              Ответить
+            </button>
+          </div>
+        </div>
+
+        {/* Child comments */}
+        {node.replies.length > 0 && (
+          <div className={indentClass}>
+            {node.replies.map(replyNode => renderCommentNode(replyNode, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Body scroll lock when overlay is open ───────────────────────────────
+  useEffect(() => {
+    if (!selectedNewsId) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [selectedNewsId]);
+
+  // ── Esc key closes the overlay ────────────────────────────────────────────
+  const closeOverlay = useCallback(() => {
+    setSelectedNewsId(null);
+    setCommentError('');
+    setCommentText('');
+    setReplyTo(null);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedNewsId) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeOverlay(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedNewsId, closeOverlay]);
+
+  // ── Compute article data for the overlay ─────────────────────────────────
+  const selectedArticle = selectedNewsId ? news.find(n => n.id === selectedNewsId) ?? null : null;
+  const articleRating = selectedArticle ? getNewsAverageRating(selectedArticle.ratings) : { average: '0.0', count: 0 };
+  const userRating = selectedArticle ? (selectedArticle.ratings?.[currentUserId] || 0) : 0;
+  const commentTree = selectedArticle ? buildCommentTree(selectedArticle.comments || []) : [];
+
+  // ── Render general feed layout (Hero, stats, list/grid) ──────────────────
   return (
     <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
       
@@ -195,14 +319,14 @@ export const NewsView: React.FC = () => {
         </div>
 
         <div className="relative z-10 space-y-3 flex-1 text-center md:text-left w-full">
-          <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-accent-light text-accent-color border border-accent-color/20 flex items-center gap-1 w-fit mx-auto md:mx-0">
+          <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-accent-light text-accent-color border border-accent-color/20 flex items-center gap-1 w-fit mx-auto md:mx-0 font-mono">
             <Newspaper className="w-3.5 h-3.5" />
             <span>Раздел новостей</span>
           </span>
-          <h1 className="text-2xl md:text-4xl font-extrabold text-text-primary tracking-tight">
+          <h1 className="text-2xl md:text-4xl font-extrabold text-text-primary tracking-tight leading-tight">
             Новости Сообщества <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent-color to-accent-hover">Pisulka Squad</span>
           </h1>
-          <p className="text-xs md:text-sm text-text-secondary leading-relaxed max-w-xl">
+          <p className="text-xs md:text-sm text-text-secondary leading-relaxed max-w-xl font-sans">
             Будьте в курсе всех нововведений, событий игрового сервера и расписания релизов! Ставьте оценки новостям и пишите свои отзывы в комментариях.
           </p>
         </div>
@@ -332,7 +456,7 @@ export const NewsView: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-between items-center pt-2">
+            <div className="flex justify-between items-center pt-2 font-sans">
               <div>
                 {formError && <span className="text-[10px] text-rose-500 font-semibold">{formError}</span>}
                 {formSuccess && <span className="text-[10px] text-emerald-550 font-semibold">{formSuccess}</span>}
@@ -349,10 +473,10 @@ export const NewsView: React.FC = () => {
         )}
       </div>
 
-      {/* 2. NEWS LIST */}
-      <div className="space-y-4">
+      {/* 2. NEWS LIST GRID */}
+      <div className="space-y-6">
         {news.length === 0 ? (
-          <div className="rounded-[32px] border border-dashed border-border-color p-12 text-center space-y-4 bg-bg-card shadow-soft">
+          <div className="rounded-[32px] border border-dashed border-border-color p-12 text-center space-y-4 bg-bg-card shadow-soft font-sans">
             <Newspaper className="w-12 h-12 text-text-muted mx-auto animate-pulse" />
             <h2 className="text-lg font-bold text-text-primary">Новостей пока нет</h2>
             <p className="text-xs text-text-secondary max-w-sm mx-auto leading-relaxed">
@@ -360,355 +484,76 @@ export const NewsView: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-5">
-            {news.map((item, index) => {
-              const isExpanded = expandedId === item.id;
-              const { average, count } = getNewsAverageRating(item.ratings);
-              const userRating = item.ratings?.[currentUserId] || 0;
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+            {news.map((item) => {
+              const { average } = getNewsAverageRating(item.ratings);
               return (
                 <div 
                   key={item.id} 
-                  className={`bg-bg-card border border-border-color rounded-3xl p-5 md:p-6 transition-all duration-300 shadow-soft hover:shadow-hover relative overflow-hidden ${
-                    isExpanded ? 'border-accent-color/30 scale-[1.002]' : 'hover:border-accent-color/20'
-                  }`}
+                  onClick={() => setSelectedNewsId(item.id)}
+                  className="bg-bg-card border border-border-color rounded-[24px] overflow-hidden flex flex-col transition-all duration-300 hover:border-accent-color/30 hover:scale-[1.01] hover:shadow-hover cursor-pointer group shadow-soft"
                 >
-                  {/* Decorative rating-based glow for Top news */}
-                  {index === 0 && average >= 4.0 && (
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-accent-color/10 to-transparent pointer-events-none rounded-bl-full" />
-                  )}
-
-                  <div className="space-y-4">
-                    {/* Header info */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-color pb-3 select-none">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2.5 py-0.5 rounded-lg border border-accent-color/20 uppercase tracking-wider">
-                          {item.tag}
-                        </span>
-                        
-                        {index === 0 && average >= 4.0 && (
-                          <span className="text-[9px] font-bold text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20 flex items-center gap-0.5 uppercase tracking-wider">
-                            <Sparkles className="w-2.5 h-2.5" />
-                            <span>В топе</span>
-                          </span>
-                        )}
+                  {/* Card Image */}
+                  <div className="relative aspect-[16/9] w-full bg-bg-app border-b border-border-color/60 overflow-hidden shrink-0">
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      // Placeholder when image is missing
+                      <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-2 text-text-muted select-none">
+                        <Newspaper className="w-8 h-8 opacity-45 group-hover:scale-110 transition-transform duration-300" />
+                        <span className="text-[10px] font-bold tracking-wider font-mono">PISULKA SQUAD</span>
                       </div>
+                    )}
+                    
+                    {/* Tag overlay */}
+                    <span className="absolute top-3 left-3 text-[8px] font-mono font-bold text-accent-color bg-bg-card/90 backdrop-blur-xs px-2.5 py-0.5 rounded-lg border border-accent-color/20 uppercase tracking-wider shadow-soft">
+                      {item.tag}
+                    </span>
+                  </div>
 
-                      <div className="flex items-center gap-4 text-[10px] text-text-muted font-mono">
-                        {/* Rating Display */}
-                        <div className="flex items-center gap-1 text-yellow-500 font-bold bg-bg-app border border-border-color/50 px-2.5 py-0.5 rounded-lg">
-                          <Star className="w-3 h-3 fill-current" />
-                          <span>{count > 0 ? average : '0.0'}</span>
-                          <span className="text-[8px] text-text-muted font-normal">({count})</span>
-                        </div>
-
-                        {/* Comments Count display */}
-                        <div className="flex items-center gap-1 text-accent-color font-bold bg-bg-app border border-border-color/50 px-2.5 py-0.5 rounded-lg">
-                          <MessageSquare className="w-3 h-3" />
-                          <span>{item.comments?.length || 0}</span>
-                        </div>
-
-                        <span className="flex items-center gap-1 text-text-muted font-sans">
+                  {/* Card Content */}
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3.5">
+                    <div className="space-y-2.5">
+                      {/* Meta Info */}
+                      <div className="flex items-center justify-between text-[9px] text-text-muted font-mono">
+                        <span className="flex items-center gap-1 font-sans">
                           <Calendar className="w-3 h-3" />
                           <span>{formatNewsDate(item.date)}</span>
                         </span>
-                      </div>
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="text-sm md:text-base font-extrabold text-text-primary tracking-tight">
-                      {item.title}
-                    </h3>
-
-                    {item.imageUrl && (
-                      <div className={`rounded-2xl overflow-hidden border border-border-color/60 bg-bg-app ${
-                        isExpanded ? 'w-full max-h-[380px]' : 'w-full max-h-48'
-                      } flex items-center justify-start`}>
-                        <img 
-                          src={item.imageUrl} 
-                          alt={item.title} 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-
-                    {/* Content (Conditional truncate) */}
-                    <p className={`text-xs text-text-secondary leading-relaxed whitespace-pre-wrap break-words transition-all duration-300 font-sans ${
-                      isExpanded ? '' : 'line-clamp-2'
-                    }`}>
-                      {item.content}
-                    </p>
-
-                    {/* Action buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-                      <button
-                        onClick={() => toggleExpand(item.id)}
-                        className={`text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer bg-bg-app border border-border-color/60 hover:border-accent-color/30 px-4 py-2 rounded-xl text-text-secondary hover:text-text-primary ${
-                          isExpanded ? 'text-accent-color border-accent-color/25' : ''
-                        }`}
-                      >
-                        <span>{isExpanded ? 'Свернуть новость' : 'Читать полностью'}</span>
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-
-                      {/* Floating mini rating widget when expanded is false */}
-                      {!isExpanded && (
-                        <div className="flex items-center gap-0.5 select-none">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                rateNews(item.id, star);
-                              }}
-                              className={`text-[12px] focus:outline-none transition-all hover:scale-125 cursor-pointer ${
-                                star <= userRating ? 'text-yellow-500 font-bold' : 'text-text-muted hover:text-yellow-500'
-                              }`}
-                              title={`Оценить на ${star}`}
-                            >
-                              ★
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Expanded details: Interactive rating widget & Comments section */}
-                    {isExpanded && (
-                      <div className="mt-6 pt-6 border-t border-border-color space-y-6 animate-[fadeIn_0.25s_ease-out]">
                         
-                        {/* 2.1 Interactive Rating Section */}
-                        <div className="bg-bg-app border border-border-color/70 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm select-none">
-                          <div className="space-y-1 text-center sm:text-left">
-                            <h4 className="text-xs font-bold text-text-primary flex items-center justify-center sm:justify-start gap-1 font-mono uppercase tracking-wider">
-                              <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
-                              <span>Оцените эту новость</span>
-                            </h4>
-                            <p className="text-[10px] text-text-secondary">Ваша оценка поможет отсортировать важные новости выше в ленте.</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-0.5 text-yellow-500 font-bold bg-bg-app px-1.5 py-0.5 rounded border border-border-color/40">
+                            <Star className="w-2.5 h-2.5 fill-current" />
+                            <span>{average > 0 ? average : '0.0'}</span>
                           </div>
-
-                          <div className="flex items-center gap-4 bg-bg-card border border-border-color px-4 py-2 rounded-xl shadow-soft">
-                            <div className="flex items-center gap-1 font-mono text-yellow-500 font-bold text-xs shrink-0 pr-3 border-r border-border-color">
-                              <span>★ {count > 0 ? average : '0.0'}</span>
-                              <span className="text-[9px] text-text-muted font-normal">({count} голосов)</span>
-                            </div>
-
-                            <div className="flex items-center gap-0.5">
-                              {[1, 2, 3, 4, 5].map((star) => {
-                                const isHighlighted = star <= userRating;
-                                return (
-                                  <button
-                                    key={star}
-                                    type="button"
-                                    onClick={() => rateNews(item.id, star)}
-                                    className={`text-[15px] focus:outline-none transition-all hover:scale-125 cursor-pointer ${
-                                      isHighlighted 
-                                        ? 'text-yellow-500 font-bold filter drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]' 
-                                        : 'text-text-muted hover:text-yellow-500'
-                                    }`}
-                                    title={`Оценить на ${star}`}
-                                  >
-                                    ★
-                                  </button>
-                                );
-                              })}
-                            </div>
+                          <div className="flex items-center gap-0.5 text-accent-color font-bold bg-bg-app px-1.5 py-0.5 rounded border border-border-color/40">
+                            <MessageSquare className="w-2.5 h-2.5" />
+                            <span>{item.comments?.length || 0}</span>
                           </div>
                         </div>
-
-                        {/* 2.2 Comments Section */}
-                        <div className="space-y-4">
-                          <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5 font-mono uppercase tracking-wider border-b border-border-color pb-2">
-                            <MessageSquare className="w-3.5 h-3.5 text-accent-color" />
-                            <span>Комментарии к новости ({item.comments?.length || 0})</span>
-                          </h4>
-
-                          {/* Comment input form */}
-                          <form onSubmit={(e) => handleSubmitComment(e, item.id)} className="space-y-3 bg-bg-app border border-border-color p-4 rounded-2xl shadow-soft">
-                            <div className="flex flex-col md:flex-row gap-3">
-                              <div className="w-full md:w-1/4 font-sans">
-                                <label htmlFor={`nickname-${item.id}`} className="block text-[9px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 font-mono">
-                                  Ваш псевдоним
-                                </label>
-                                <input
-                                  id={`nickname-${item.id}`}
-                                  type="text"
-                                  value={nickname}
-                                  onChange={(e) => setNickname(e.target.value)}
-                                  placeholder="Введите никнейм..."
-                                  className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
-                                  maxLength={25}
-                                />
-                              </div>
-                              
-                              <div className="flex-1 font-sans space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <label htmlFor={`comment-${item.id}`} className="block text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono">
-                                    Комментарий
-                                  </label>
-                                  
-                                  {replyTo && (
-                                    <div className="flex items-center gap-1.5 bg-accent-light border border-accent-color/15 px-2 py-0.5 rounded-lg text-[9px] font-bold text-accent-color animate-[fadeIn_0.15s_ease-out]">
-                                      <span>Ответ @{replyTo.author}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => setReplyTo(null)}
-                                        className="text-accent-color hover:text-accent-hover p-0.5 rounded transition-colors cursor-pointer"
-                                        title="Отменить ответ"
-                                      >
-                                        <X className="w-2.5 h-2.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                <textarea
-                                  id={`comment-${item.id}`}
-                                  rows={2}
-                                  value={commentText}
-                                  onChange={(e) => setCommentText(e.target.value)}
-                                  placeholder={replyTo ? `Напишите ответ для @${replyTo.author}...` : "Напишите комментарий..."}
-                                  className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all resize-none font-sans"
-                                  maxLength={500}
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-between items-center mt-2 font-sans">
-                              <div>
-                                {commentError && <span className="text-[10px] text-rose-500 font-semibold">{commentError}</span>}
-                              </div>
-                              <button
-                                type="submit"
-                                className="bg-accent-color hover:bg-accent-hover text-white rounded-xl px-4 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-soft active:scale-95 self-end"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                                <span>Отправить</span>
-                              </button>
-                            </div>
-                          </form>
-
-                          {/* Comments list */}
-                          <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-                            {!item.comments || item.comments.length === 0 ? (
-                              <div className="text-center py-6 border border-dashed border-border-color rounded-2xl bg-bg-app text-text-muted text-xs font-sans shadow-soft">
-                                Комментариев пока нет. Напишите первый отзыв!
-                              </div>
-                            ) : (
-                              (() => {
-                                const allComments = item.comments || [];
-                                const parentComments = allComments
-                                  .filter(c => !c.parentId)
-                                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                                const replyComments = allComments
-                                  .filter(c => c.parentId)
-                                  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-                                return parentComments.map((parent) => {
-                                  const isParentOwner = parent.userId === currentUserId;
-                                  const parentGradient = getAvatarGradient(parent.author);
-                                  const parentInitials = getInitials(parent.author);
-                                  const replies = replyComments.filter(r => r.parentId === parent.id);
-
-                                  return (
-                                    <div key={parent.id} className="space-y-3">
-                                      {/* Parent Comment Card */}
-                                      <div className="flex gap-3 bg-bg-app border border-border-color rounded-2xl p-3.5 hover:border-accent-color/20 transition-all group font-sans shadow-soft">
-                                        <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${parentGradient} text-white font-bold flex items-center justify-center text-[9px] shrink-0 uppercase tracking-wider`}>
-                                          {parentInitials}
-                                        </div>
-
-                                        <div className="flex-1 min-w-0 space-y-1">
-                                          <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-baseline gap-1.5">
-                                              <span className="text-xs font-bold text-text-primary truncate">{parent.author}</span>
-                                              {isParentOwner && (
-                                                <span className="text-[8px] px-1 py-0.2 rounded bg-accent-light text-accent-color border border-accent-color/10 font-semibold font-mono">
-                                                  Вы
-                                                </span>
-                                              )}
-                                            </div>
-                                            <span className="text-[8px] text-text-muted font-mono shrink-0">
-                                              {formatCommentDate(parent.createdAt)}
-                                            </span>
-                                          </div>
-                                          <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap break-words select-text font-sans">
-                                            {parent.text}
-                                          </p>
-                                          
-                                          <button
-                                            type="button"
-                                            onClick={() => handleReplyClick(parent, item.id)}
-                                            className="text-[9px] font-bold text-accent-color hover:underline cursor-pointer pt-1 flex items-center gap-0.5"
-                                          >
-                                            Ответить
-                                          </button>
-                                        </div>
-                                      </div>
-
-                                      {/* Nested Replies */}
-                                      {replies.length > 0 && (
-                                        <div className="pl-6 border-l-2 border-accent-color/10 ml-4 space-y-3 mt-3 animate-[fadeIn_0.2s_ease-out]">
-                                          {replies.map((reply) => {
-                                            const isReplyOwner = reply.userId === currentUserId;
-                                            const replyGradient = getAvatarGradient(reply.author);
-                                            const replyInitials = getInitials(reply.author);
-
-                                            return (
-                                              <div 
-                                                key={reply.id}
-                                                className="flex gap-2.5 bg-bg-app/50 border border-border-color/70 rounded-xl p-3 hover:border-accent-color/15 transition-all group font-sans shadow-sm"
-                                              >
-                                                <div className={`w-6.5 h-6.5 rounded-full bg-gradient-to-br ${replyGradient} text-white font-bold flex items-center justify-center text-[8px] shrink-0 uppercase tracking-wider`}>
-                                                  {replyInitials}
-                                                </div>
-
-                                                <div className="flex-1 min-w-0 space-y-1">
-                                                  <div className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-baseline gap-1.5 flex-wrap">
-                                                      <span className="text-xs font-bold text-text-primary truncate">{reply.author}</span>
-                                                      {isReplyOwner && (
-                                                        <span className="text-[8px] px-1 py-0.2 rounded bg-accent-light text-accent-color border border-accent-color/10 font-semibold font-mono">
-                                                          Вы
-                                                        </span>
-                                                      )}
-                                                      <span className="text-[9px] text-accent-color font-bold flex items-center gap-0.5 font-sans">
-                                                        <CornerDownRight className="w-2.5 h-2.5 text-accent-color/50" />
-                                                        <span>ответил @{reply.replyToAuthor}</span>
-                                                      </span>
-                                                    </div>
-                                                    <span className="text-[8px] text-text-muted font-mono shrink-0">
-                                                      {formatCommentDate(reply.createdAt)}
-                                                    </span>
-                                                  </div>
-                                                  <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap break-words select-text font-sans">
-                                                    {reply.text}
-                                                  </p>
-                                                  
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleReplyClick(reply, item.id)}
-                                                    className="text-[9px] font-bold text-accent-color hover:underline cursor-pointer pt-1 flex items-center gap-0.5"
-                                                  >
-                                                    Ответить
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                });
-                              })()
-                            )}
-                          </div>
-                        </div>
-
                       </div>
-                    )}
+
+                      {/* Title */}
+                      <h3 className="text-xs md:text-sm font-extrabold text-text-primary group-hover:text-accent-color transition-colors line-clamp-2 leading-tight tracking-tight">
+                        {item.title}
+                      </h3>
+
+                      {/* Excerpt */}
+                      <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-3 font-sans break-words">
+                        {item.content}
+                      </p>
+                    </div>
+
+                    {/* Footer Action */}
+                    <div className="flex items-center justify-between pt-2 border-t border-border-color/40 text-[10px] font-bold text-accent-color">
+                      <span>Читать подробнее</span>
+                      <CornerDownRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </div>
                   </div>
                 </div>
               );
@@ -716,6 +561,207 @@ export const NewsView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          FULLSCREEN ARTICLE OVERLAY
+          Rendered on top of everything when a card is clicked.
+          z-50 covers sidebar, header, and the main scroll container.
+      ══════════════════════════════════════════════════════════════ */}
+      {selectedNewsId && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
+        >
+          <div className="relative w-full max-w-3xl mx-auto my-6 px-4 font-sans">
+
+            {/* ── Close button (top-right, always visible) ── */}
+            <button
+              onClick={closeOverlay}
+              aria-label="Закрыть новость"
+              className="absolute -top-1 right-4 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-bg-card border border-border-color shadow-soft hover:bg-bg-app hover:border-accent-color/30 text-text-secondary hover:text-text-primary transition-all cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {!selectedArticle ? (
+              /* ── Not found state ── */
+              <div className="bg-bg-card border border-border-color rounded-[32px] p-12 text-center space-y-4 shadow-soft mt-8">
+                <Newspaper className="w-12 h-12 text-rose-500 mx-auto animate-bounce" />
+                <h2 className="text-lg font-bold text-text-primary">Новость не найдена</h2>
+                <p className="text-xs text-text-secondary max-w-sm mx-auto">
+                  К сожалению, запрашиваемая новость не существует или была удалена.
+                </p>
+                <button
+                  onClick={closeOverlay}
+                  className="px-4 py-2 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft transition-all cursor-pointer"
+                >
+                  Назад к списку
+                </button>
+              </div>
+            ) : (
+              /* ── Full article card ── */
+              <div className="bg-bg-card border border-border-color rounded-[32px] overflow-hidden shadow-soft">
+
+                {/* Header bar: tag + back link */}
+                <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border-color">
+                  <span className="text-[10px] font-mono font-bold text-accent-color bg-accent-light px-2.5 py-0.5 rounded-lg border border-accent-color/20 uppercase tracking-wider">
+                    {selectedArticle.tag}
+                  </span>
+                  <div className="flex items-center gap-3 text-[10px] text-text-muted font-mono">
+                    <span className="flex items-center gap-1 font-sans">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{formatNewsDate(selectedArticle.date)}</span>
+                    </span>
+                    <button
+                      onClick={closeOverlay}
+                      className="flex items-center gap-1 text-text-secondary hover:text-accent-color font-sans font-bold transition-colors cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                      <span>Назад</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Full-width hero image */}
+                {selectedArticle.imageUrl && (
+                  <div className="w-full bg-bg-app border-b border-border-color/60 max-h-[420px] flex items-center justify-center overflow-hidden">
+                    <img
+                      src={selectedArticle.imageUrl}
+                      alt={selectedArticle.title}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                )}
+
+                {/* Body */}
+                <div className="p-6 md:p-8 space-y-6">
+
+                  {/* Title */}
+                  <h1 className="text-xl md:text-3xl font-extrabold text-text-primary tracking-tight leading-tight">
+                    {selectedArticle.title}
+                  </h1>
+
+                  {/* Full text */}
+                  <p className="text-xs md:text-sm text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
+                    {selectedArticle.content}
+                  </p>
+
+                  {/* Rating block */}
+                  <div className="bg-bg-app border border-border-color/70 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm select-none">
+                    <div className="space-y-0.5 text-center sm:text-left">
+                      <h4 className="text-xs font-bold text-text-primary flex items-center justify-center sm:justify-start gap-1 font-mono uppercase tracking-wider">
+                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+                        <span>Оцените эту новость</span>
+                      </h4>
+                      <p className="text-[10px] text-text-secondary font-sans">Ваша оценка поможет отсортировать важные новости выше в ленте.</p>
+                    </div>
+
+                    <div className="flex items-center gap-4 bg-bg-card border border-border-color px-4 py-2 rounded-xl shadow-soft">
+                      <div className="flex items-center gap-1 font-mono text-yellow-500 font-bold text-xs shrink-0 pr-3 border-r border-border-color">
+                        <span>★ {articleRating.count > 0 ? articleRating.average : '0.0'}</span>
+                        <span className="text-[9px] text-text-muted font-normal font-sans">({articleRating.count} голосов)</span>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => rateNews(selectedArticle.id, star)}
+                            className={`text-[15px] focus:outline-none transition-all hover:scale-125 cursor-pointer ${
+                              star <= userRating
+                                ? 'text-yellow-500 font-bold filter drop-shadow-[0_0_3px_rgba(234,179,8,0.4)]'
+                                : 'text-text-muted hover:text-yellow-500'
+                            }`}
+                            title={`Оценить на ${star}`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comments section */}
+                  <div className="space-y-4 pt-2 border-t border-border-color">
+                    <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5 font-mono uppercase tracking-wider border-b border-border-color pb-2 pt-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-accent-color" />
+                      <span>Комментарии ({selectedArticle.comments?.length || 0})</span>
+                    </h4>
+
+                    {/* Comment form */}
+                    <form onSubmit={(e) => handleSubmitComment(e, selectedArticle.id)} className="space-y-3 bg-bg-app border border-border-color p-4 rounded-2xl shadow-soft">
+                      <div className="flex flex-col md:flex-row gap-3">
+                        <div className="w-full md:w-1/4">
+                          <label htmlFor={`nickname-ov-${selectedArticle.id}`} className="block text-[9px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 font-mono">
+                            Псевдоним
+                          </label>
+                          <input
+                            id={`nickname-ov-${selectedArticle.id}`}
+                            type="text"
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
+                            placeholder="Никнейм..."
+                            className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
+                            maxLength={25}
+                          />
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label htmlFor={`comment-ov-${selectedArticle.id}`} className="block text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono">
+                              Комментарий
+                            </label>
+                            {replyTo && (
+                              <div className="flex items-center gap-1.5 bg-accent-light border border-accent-color/15 px-2 py-0.5 rounded-lg text-[9px] font-bold text-accent-color">
+                                <span>Ответ @{replyTo.author}</span>
+                                <button type="button" onClick={() => setReplyTo(null)} className="cursor-pointer">
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <textarea
+                            id={`comment-ov-${selectedArticle.id}`}
+                            rows={2}
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            placeholder={replyTo ? `Ответ для @${replyTo.author}...` : 'Напишите комментарий...'}
+                            className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all resize-none font-sans"
+                            maxLength={500}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <div>
+                          {commentError && <span className="text-[10px] text-rose-500 font-semibold">{commentError}</span>}
+                        </div>
+                        <button
+                          type="submit"
+                          className="bg-accent-color hover:bg-accent-hover text-white rounded-xl px-4 py-2 flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-soft active:scale-95"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Отправить</span>
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Comments list */}
+                    <div className="space-y-4">
+                      {commentTree.length === 0 ? (
+                        <div className="text-center py-6 border border-dashed border-border-color rounded-2xl bg-bg-app text-text-muted text-xs font-sans">
+                          Комментариев пока нет. Напишите первый отзыв!
+                        </div>
+                      ) : (
+                        commentTree.map(node => renderCommentNode(node))
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
