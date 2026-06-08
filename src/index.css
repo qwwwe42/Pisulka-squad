@@ -177,3 +177,9 @@ html[data-theme='light'] {
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
 }
+
+/* Dynamic Logo Theme Inversion */
+html[data-theme='light'] .theme-logo {
+  filter: invert(1);
+}
+

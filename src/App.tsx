@@ -88,7 +88,7 @@ function AppContent() {
             setIsMobileMenuOpen(false);
           }}
         >
-          <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]" />
+          <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02] theme-logo" />
         </div>
 
         {/* Navigation Menu */}
@@ -247,7 +247,7 @@ function AppContent() {
                 handleBackToCatalog();
               }}
             >
-              <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain" />
+              <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain theme-logo" />
             </div>
           </div>
 
