@@ -24,6 +24,8 @@ interface StreamingContextType {
   addNews: (newsItem: Omit<NewsArticle, 'id'>) => Promise<string>;
   updateNews: (newsId: string, newsItem: Partial<NewsArticle>) => Promise<void>;
   deleteNews: (newsId: string) => Promise<void>;
+  rateNews: (newsId: string, rating: number) => Promise<void>;
+  addNewsComment: (newsId: string, author: string, text: string, parentId?: string, replyToAuthor?: string) => Promise<void>;
   minecraftConfig: MinecraftConfig;
   updateMinecraftConfig: (config: MinecraftConfig) => Promise<void>;
   gallery: GalleryItem[];
@@ -232,6 +234,29 @@ export const getShowAverageRating = (ratings?: Record<string, number>) => {
   return { average, count: values.length };
 };
 
+export const getNewsAverageRating = (ratings?: Record<string, number>) => {
+  if (!ratings) return { average: 0, count: 0 };
+  const values = Object.values(ratings);
+  if (values.length === 0) return { average: 0, count: 0 };
+  const sum = values.reduce((acc, val) => acc + val, 0);
+  const average = Math.round((sum / values.length) * 10) / 10;
+  return { average, count: values.length };
+};
+
+export const sortNewsItems = (items: NewsArticle[]): NewsArticle[] => {
+  return [...items].sort((a, b) => {
+    const ratingA = getNewsAverageRating(a.ratings);
+    const ratingB = getNewsAverageRating(b.ratings);
+    if (ratingB.average !== ratingA.average) {
+      return ratingB.average - ratingA.average;
+    }
+    if (ratingB.count !== ratingA.count) {
+      return ratingB.count - ratingA.count;
+    }
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+};
+
 export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Load from localStorage immediately on mount (synchronous, no flicker)
   const [shows, setShows] = useState<Show[]>(() => {
@@ -399,10 +424,12 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             DEMO_NEWS.forEach(item => {
               setDoc(doc(db, 'news', item.id), item).catch(console.error);
             });
-            setNews(DEMO_NEWS);
-            localStorage.setItem('penis_ink_news', JSON.stringify(DEMO_NEWS));
+            // Also sort DEMO_NEWS just in case
+            const sortedDemo = sortNewsItems(DEMO_NEWS);
+            setNews(sortedDemo);
+            localStorage.setItem('penis_ink_news', JSON.stringify(sortedDemo));
           } else {
-            const sorted = firestoreNews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const sorted = sortNewsItems(firestoreNews);
             setNews(sorted);
             localStorage.setItem('penis_ink_news', JSON.stringify(sorted));
           }
@@ -780,9 +807,10 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       id: 'news-' + Date.now().toString()
     };
 
-    const updatedNews = [newNews, ...news].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setNews(updatedNews);
-    localStorage.setItem('penis_ink_news', JSON.stringify(updatedNews));
+    const updatedNews = [newNews, ...news];
+    const sortedNews = sortNewsItems(updatedNews);
+    setNews(sortedNews);
+    localStorage.setItem('penis_ink_news', JSON.stringify(sortedNews));
 
     if (isFirebaseConnectedRef.current) {
       try {
@@ -801,14 +829,15 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return { ...item, ...updatedFields };
       }
       return item;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+    const sortedNews = sortNewsItems(updatedNews);
 
-    setNews(updatedNews);
-    localStorage.setItem('penis_ink_news', JSON.stringify(updatedNews));
+    setNews(sortedNews);
+    localStorage.setItem('penis_ink_news', JSON.stringify(sortedNews));
 
     if (isFirebaseConnectedRef.current) {
       try {
-        const targetNews = updatedNews.find(item => item.id === newsId);
+        const targetNews = sortedNews.find(item => item.id === newsId);
         if (targetNews) {
           await setDoc(doc(db, 'news', newsId), targetNews);
         }
@@ -820,13 +849,76 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteNews = async (newsId: string) => {
     const updatedNews = news.filter((item) => item.id !== newsId);
+    const sortedNews = sortNewsItems(updatedNews);
 
-    setNews(updatedNews);
-    localStorage.setItem('penis_ink_news', JSON.stringify(updatedNews));
+    setNews(sortedNews);
+    localStorage.setItem('penis_ink_news', JSON.stringify(sortedNews));
 
     if (isFirebaseConnectedRef.current) {
       try {
         await deleteDoc(doc(db, 'news', newsId));
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
+  const rateNews = async (newsId: string, rating: number) => {
+    const userId = getOrCreateUserId();
+    const updatedNews = news.map((item) => {
+      if (item.id === newsId) {
+        const ratings = { ...(item.ratings || {}), [userId]: rating };
+        return { ...item, ratings };
+      }
+      return item;
+    });
+
+    const sortedNews = sortNewsItems(updatedNews);
+    setNews(sortedNews);
+    localStorage.setItem('penis_ink_news', JSON.stringify(sortedNews));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        const targetNews = sortedNews.find(item => item.id === newsId);
+        if (targetNews) {
+          await setDoc(doc(db, 'news', newsId), targetNews);
+        }
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
+  const addNewsComment = async (newsId: string, author: string, text: string, parentId?: string, replyToAuthor?: string) => {
+    const userId = getOrCreateUserId();
+    const newComment: Comment = {
+      id: 'comment-' + Date.now().toString() + '-' + Math.random().toString(36).substring(2, 7),
+      author,
+      text,
+      createdAt: new Date().toISOString(),
+      userId,
+      parentId,
+      replyToAuthor
+    };
+
+    const updatedNews = news.map((item) => {
+      if (item.id === newsId) {
+        const comments = [...(item.comments || []), newComment];
+        return { ...item, comments };
+      }
+      return item;
+    });
+
+    const sortedNews = sortNewsItems(updatedNews);
+    setNews(sortedNews);
+    localStorage.setItem('penis_ink_news', JSON.stringify(sortedNews));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        const targetNews = sortedNews.find(item => item.id === newsId);
+        if (targetNews) {
+          await setDoc(doc(db, 'news', newsId), targetNews);
+        }
       } catch (e) {
         handleWriteFailure(e);
       }
@@ -955,6 +1047,8 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       addNews,
       updateNews,
       deleteNews,
+      rateNews,
+      addNewsComment,
       minecraftConfig,
       updateMinecraftConfig,
       gallery,

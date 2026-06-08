@@ -25,6 +25,8 @@ export interface Comment {
   text: string;
   createdAt: string; // ISO string
   userId: string;
+  parentId?: string; // ID of the comment being replied to
+  replyToAuthor?: string; // Author nickname of the parent comment
 }
 
 export interface NewsArticle {
@@ -33,6 +35,8 @@ export interface NewsArticle {
   content: string;
   date: string; // ISO string
   tag: string; // e.g. "07 ИЮНЯ 2026" or "ВАЖНО"
+  ratings?: Record<string, number>; // userId -> rating (1-5)
+  comments?: Comment[]; // User comments list
 }
 
 export interface MinecraftRule {

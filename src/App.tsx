@@ -7,7 +7,8 @@ import { AdminPanel } from './components/AdminPanel';
 import { MinecraftView } from './components/MinecraftView';
 import { GalleryView } from './components/GalleryView';
 import { CoWatchRoom } from './components/CoWatchRoom';
-import { Settings, Home, Menu, X, Tv, Gamepad2, Image, Sun, Moon, Users } from 'lucide-react';
+import { NewsView } from './components/NewsView';
+import { Settings, Home, Menu, X, Tv, Gamepad2, Image, Sun, Moon, Users, Newspaper } from 'lucide-react';
 
 function AppContent() {
   const {
@@ -17,7 +18,7 @@ function AppContent() {
     setActiveEpisodeId
   } = useStreaming();
 
-  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'gallery' | 'minecraft' | 'cowatch' | 'admin'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'news' | 'cowatch' | 'gallery' | 'minecraft' | 'admin'>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('penis_ink_admin') === 'true';
@@ -143,6 +144,22 @@ function AppContent() {
               <span>Совместный просмотр</span>
             </button>
 
+            {/* Новости */}
+            <button
+              onClick={() => {
+                setActiveTab('news');
+                handleBackToCatalog();
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'news'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                }`}
+            >
+              <Newspaper className="w-5 h-5" />
+              <span>Новости</span>
+            </button>
+
             {/* Майнкрафт */}
             <button
               onClick={() => {
@@ -252,7 +269,7 @@ function AppContent() {
             <div className="flex items-center gap-2">
               {/* Show simple category/indicator */}
               <span className="text-[10px] font-bold uppercase tracking-wider text-accent-color bg-accent-light border border-accent-color/20 px-2.5 py-0.5 rounded-lg font-sans">
-                {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'cowatch' ? 'Совместный просмотр' : activeTab === 'gallery' ? 'Галерея' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
+                {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'news' ? 'Новости' : activeTab === 'cowatch' ? 'Совместный просмотр' : activeTab === 'gallery' ? 'Галерея' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
               </span>
             </div>
           </header>
@@ -293,6 +310,9 @@ function AppContent() {
             ) : activeTab === 'minecraft' ? (
               // Render Minecraft View
               <MinecraftView />
+            ) : activeTab === 'news' ? (
+              // Render News View
+              <NewsView />
             ) : activeTab === 'shows' ? (
               // Render Shows Catalog
               <Dashboard
