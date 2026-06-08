@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { 
   doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, serverTimestamp,
-  collection, query, where
+  collection, query, where, deleteDoc, runTransaction
 } from 'firebase/firestore';
 import { 
   X, Send, Users, MessageSquare, Play, Pause, 
@@ -51,6 +51,7 @@ interface RoomData {
   };
   visibility?: 'public' | 'private';
   hasPassword?: boolean;
+  emptySince?: number | null;
 }
 
 interface CoWatchRoomProps {
@@ -417,21 +418,40 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   const proceedJoinRoom = async (code: string) => {
     try {
       const roomRef = doc(db, 'rooms', code);
-      const pUser: Participant = {
-        id: userId,
-        name: nickname.trim(),
-        joinedAt: new Date().toISOString()
-      };
 
-      await updateDoc(roomRef, {
-        participants: arrayUnion(pUser),
-        messages: arrayUnion({
+      await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) throw new Error('Комната не найдена');
+        
+        const data = roomDoc.data() as RoomData;
+        const existingParticipants = data.participants || [];
+        const existingUser = existingParticipants.find(p => p.id === userId);
+        
+        const newJoinedAt = existingUser ? existingUser.joinedAt : new Date().toISOString();
+        const pUser: Participant = {
+          id: userId,
+          name: nickname.trim(),
+          joinedAt: newJoinedAt
+        };
+
+        const updatedParticipants = existingParticipants.filter(p => p.id !== userId);
+        updatedParticipants.push(pUser);
+
+        const existingMessages = data.messages || [];
+        const joinMsg: Message = {
           id: `system-joined-${Date.now()}`,
           senderId: 'system',
           senderName: 'Система',
           text: `${nickname.trim()} присоединился к комнате.`,
           sentAt: new Date().toISOString()
-        })
+        };
+        const updatedMessages = [...existingMessages, joinMsg].slice(-50);
+
+        transaction.update(roomRef, {
+          participants: updatedParticipants,
+          messages: updatedMessages,
+          emptySince: null
+        });
       });
 
       setRoomCode(code);
@@ -530,20 +550,40 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
 
     try {
       const roomRef = doc(db, 'rooms', roomCode);
-      const pUser = room?.participants.find(p => p.id === userId);
 
-      if (pUser) {
-        await updateDoc(roomRef, {
-          participants: arrayRemove(pUser),
-          messages: arrayUnion({
+      await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) return;
+        
+        const data = roomDoc.data() as RoomData;
+        const existingParticipants = data.participants || [];
+        const pUser = existingParticipants.find(p => p.id === userId);
+        
+        if (pUser) {
+          const updatedParticipants = existingParticipants.filter(p => p.id !== userId);
+          
+          const existingMessages = data.messages || [];
+          const leaveMsg: Message = {
             id: `system-left-${Date.now()}`,
             senderId: 'system',
             senderName: 'Система',
             text: `${nickname} покинул комнату.`,
             sentAt: new Date().toISOString()
-          })
-        });
-      }
+          };
+          const updatedMessages = [...existingMessages, leaveMsg].slice(-50);
+          
+          const updates: any = {
+            participants: updatedParticipants,
+            messages: updatedMessages
+          };
+
+          if (updatedParticipants.length === 0) {
+            updates.emptySince = Date.now();
+          }
+          
+          transaction.update(roomRef, updates);
+        }
+      });
     } catch (e) {
       console.warn('Error removing participant from room:', e);
     }
@@ -595,8 +635,28 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
 
     const unsub = onSnapshot(q, (snapshot) => {
       const rooms: RoomData[] = [];
+      const now = Date.now();
+      
       snapshot.forEach((docSnap) => {
-        rooms.push(docSnap.data() as RoomData);
+        const data = docSnap.data() as RoomData;
+        const participants = data.participants || [];
+        
+        if (participants.length === 0) {
+           const emptySince = data.emptySince;
+           if (emptySince && now - emptySince > 60000) {
+               // Expired grace period, clean up room
+               deleteDoc(doc(db, 'rooms', data.id)).catch(console.error);
+           } else if (!emptySince) {
+               // Mark as empty
+               updateDoc(doc(db, 'rooms', data.id), { emptySince: now }).catch(console.error);
+           }
+           // Do not push empty rooms to public list
+        } else {
+           if (data.emptySince) {
+               updateDoc(doc(db, 'rooms', data.id), { emptySince: null }).catch(console.error);
+           }
+           rooms.push(data);
+        }
       });
       // Sort rooms: participants count descending
       const sorted = rooms.sort((a, b) => {
@@ -613,6 +673,15 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
 
     return () => unsub();
   }, [isJoined, activeTab]);
+
+  const currentUserRef = useRef<Participant | null>(null);
+
+  useEffect(() => {
+    if (room) {
+       const me = room.participants.find(p => p.id === userId);
+       if (me) currentUserRef.current = me;
+    }
+  }, [room, userId]);
 
   // 1. Subscribe to Room Data in real-time
   useEffect(() => {
@@ -642,7 +711,21 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       }
     });
 
-    return () => unsub();
+    const handleBeforeUnload = () => {
+       if (currentUserRef.current && roomCode) {
+         const roomRef = doc(db, 'rooms', roomCode);
+         // Fire-and-forget beforeunload
+         updateDoc(roomRef, {
+            participants: arrayRemove(currentUserRef.current)
+         }).catch(() => {});
+       }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      unsub();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [roomCode, isJoined, userId]);
 
   // Scroll chat to bottom on new messages
