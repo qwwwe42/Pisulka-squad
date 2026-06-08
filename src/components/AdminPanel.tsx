@@ -4,7 +4,7 @@ import {
   Plus, Trash2, Database, AlertCircle, 
   Check, Info, Tv, CheckCircle2, Sparkles,
   Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock,
-  Cloud, CloudOff
+  Cloud, CloudOff, X
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
@@ -153,6 +153,7 @@ export const AdminPanel: React.FC = () => {
   const [newsTitle, setNewsTitle] = useState('');
   const [newsTag, setNewsTag] = useState('');
   const [newsContent, setNewsContent] = useState('');
+  const [newsImage, setNewsImage] = useState('');
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
 
   // Minecraft Form State
@@ -209,7 +210,8 @@ export const AdminPanel: React.FC = () => {
         await updateNews(editingNewsId, {
           title: newsTitle.trim(),
           content: newsContent.trim(),
-          tag: newsTag.trim() || 'НОВОСТЬ'
+          tag: newsTag.trim() || 'НОВОСТЬ',
+          imageUrl: newsImage || undefined
         });
         showStatusMsg('Новость успешно обновлена!');
         setEditingNewsId(null);
@@ -218,6 +220,7 @@ export const AdminPanel: React.FC = () => {
           title: newsTitle.trim(),
           content: newsContent.trim(),
           tag: newsTag.trim() || 'НОВОСТЬ',
+          imageUrl: newsImage || undefined,
           date: new Date().toISOString()
         });
         showStatusMsg('Новость успешно опубликована!');
@@ -226,6 +229,7 @@ export const AdminPanel: React.FC = () => {
       setNewsTitle('');
       setNewsContent('');
       setNewsTag('');
+      setNewsImage('');
     } catch {
       showStatusMsg('Ошибка при сохранении новости', 'error');
     }
@@ -236,6 +240,7 @@ export const AdminPanel: React.FC = () => {
     setNewsTitle(item.title);
     setNewsContent(item.content);
     setNewsTag(item.tag);
+    setNewsImage(item.imageUrl || '');
   };
 
   // Trigger transient status message
@@ -1887,6 +1892,38 @@ export const AdminPanel: React.FC = () => {
                 />
               </div>
 
+              {/* Image Upload Selector */}
+              <div className="space-y-1.5 font-sans">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
+                  Изображение к новости (необязательно)
+                </label>
+                
+                {newsImage ? (
+                  <div className="relative aspect-video max-w-sm rounded-xl border border-slate-800 overflow-hidden bg-slate-950">
+                    <img 
+                      src={newsImage} 
+                      alt="Превью" 
+                      className="w-full h-full object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setNewsImage('')}
+                      className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border border-dashed border-slate-800 rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-slate-950 max-w-sm">
+                    <p className="text-slate-500 text-[10px] font-semibold font-sans">Выберите изображение JPG, PNG или WebP</p>
+                    <ImageUploader 
+                      onImageUploaded={(base64) => setNewsImage(base64)}
+                      maxWidth={1000}
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="pt-2 flex justify-between gap-3 font-sans">
                 {editingNewsId && (
                   <button 
@@ -1896,6 +1933,7 @@ export const AdminPanel: React.FC = () => {
                       setNewsTitle('');
                       setNewsContent('');
                       setNewsTag('');
+                      setNewsImage('');
                     }}
                     className="px-5 py-2.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-semibold cursor-pointer font-sans font-sans"
                   >

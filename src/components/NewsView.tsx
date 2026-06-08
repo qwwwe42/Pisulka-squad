@@ -4,6 +4,7 @@ import {
   Newspaper, Star, MessageSquare, Send, Calendar, 
   ChevronDown, ChevronUp, Sparkles, Award, X, CornerDownRight, Plus
 } from 'lucide-react';
+import { ImageUploader } from './ImageUploader';
 
 // Color gradient generator for user avatars based on nickname hash
 const getAvatarGradient = (name: string) => {
@@ -81,6 +82,7 @@ export const NewsView: React.FC = () => {
   const [newsTitle, setNewsTitle] = useState('');
   const [newsTag, setNewsTag] = useState('');
   const [newsContent, setNewsContent] = useState('');
+  const [newsImage, setNewsImage] = useState('');
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
@@ -162,6 +164,7 @@ export const NewsView: React.FC = () => {
         title: trimmedTitle,
         tag: trimmedTag.toUpperCase(),
         content: trimmedContent,
+        imageUrl: newsImage || undefined,
         date: new Date().toISOString()
       });
       
@@ -169,6 +172,7 @@ export const NewsView: React.FC = () => {
       setNewsTitle('');
       setNewsTag('');
       setNewsContent('');
+      setNewsImage('');
       
       setTimeout(() => {
         setShowWriteForm(false);
@@ -248,6 +252,7 @@ export const NewsView: React.FC = () => {
             onClick={() => {
               setFormError('');
               setFormSuccess('');
+              setNewsImage('');
               setShowWriteForm(prev => !prev);
             }}
             className="px-4 py-2.5 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft hover:scale-[1.01] transition-all cursor-pointer self-start sm:self-center shrink-0"
@@ -293,6 +298,38 @@ export const NewsView: React.FC = () => {
                 className="w-full bg-bg-app border border-border-color rounded-xl px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all resize-none min-h-[100px] font-sans"
                 required
               />
+            </div>
+
+            {/* Image Upload Selector */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
+                Изображение к новости (необязательно)
+              </label>
+              
+              {newsImage ? (
+                <div className="relative aspect-video max-w-sm rounded-xl border border-border-color overflow-hidden bg-bg-app">
+                  <img 
+                    src={newsImage} 
+                    alt="Превью новости" 
+                    className="w-full h-full object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setNewsImage('')}
+                    className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app max-w-sm">
+                  <p className="text-text-muted text-[10px] font-semibold font-sans">Выберите изображение JPG, PNG или WebP</p>
+                  <ImageUploader 
+                    onImageUploaded={(base64) => setNewsImage(base64)}
+                    maxWidth={1000}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center pt-2">
@@ -382,6 +419,18 @@ export const NewsView: React.FC = () => {
                     <h3 className="text-sm md:text-base font-extrabold text-text-primary tracking-tight">
                       {item.title}
                     </h3>
+
+                    {item.imageUrl && (
+                      <div className={`rounded-2xl overflow-hidden border border-border-color/60 bg-bg-app ${
+                        isExpanded ? 'w-full max-h-[380px]' : 'w-full max-h-48'
+                      } flex items-center justify-start`}>
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.title} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
 
                     {/* Content (Conditional truncate) */}
                     <p className={`text-xs text-text-secondary leading-relaxed whitespace-pre-wrap break-words transition-all duration-300 font-sans ${

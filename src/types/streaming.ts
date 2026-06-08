@@ -35,6 +35,7 @@ export interface NewsArticle {
   content: string;
   date: string; // ISO string
   tag: string; // e.g. "07 ИЮНЯ 2026" or "ВАЖНО"
+  imageUrl?: string; // Optional image url/base64
   ratings?: Record<string, number>; // userId -> rating (1-5)
   comments?: Comment[]; // User comments list
 }

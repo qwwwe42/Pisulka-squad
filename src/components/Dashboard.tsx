@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { ShowCard } from './ShowCard';
 import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2 } from 'lucide-react';
+import { ImageUploader } from './ImageUploader';
 
 interface DashboardProps {
   onSelectShow: (showId: string) => void;
@@ -55,6 +56,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
   const [newsTitle, setNewsTitle] = useState('');
   const [newsTag, setNewsTag] = useState('');
   const [newsContent, setNewsContent] = useState('');
+  const [newsImage, setNewsImage] = useState('');
   const [isSubmittingNews, setIsSubmittingNews] = useState(false);
   const [newsSuccess, setNewsSuccess] = useState(false);
   
@@ -346,6 +348,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                 setNewsTitle('');
                 setNewsTag('');
                 setNewsContent('');
+                setNewsImage('');
                 setNewsSuccess(false);
               }}
               className="px-3.5 py-1.5 bg-accent-color hover:bg-accent-hover text-white rounded-xl text-[10px] font-bold shadow-soft transition-all cursor-pointer flex items-center gap-1 active:scale-95 duration-200"
@@ -358,9 +361,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
           {news && news.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {news.slice(0, 4).map((item) => (
-                <div key={item.id} className="p-5 bg-bg-app border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans">
+                <div key={item.id} className="p-5 bg-bg-card border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans">
                   <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
                   <h4 className="text-xs font-bold text-text-primary">{item.title}</h4>
+                  {item.imageUrl && (
+                    <div className="rounded-xl overflow-hidden border border-border-color/60 aspect-video max-h-36 w-full bg-bg-app flex items-center justify-start">
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
                     {item.content}
                   </p>
@@ -376,6 +384,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   setNewsTitle('');
                   setNewsTag('');
                   setNewsContent('');
+                  setNewsImage('');
                   setNewsSuccess(false);
                 }}
                 className="px-4 py-2 bg-accent-light hover:bg-accent-color hover:text-white border border-accent-color/20 text-accent-color rounded-xl text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95"
@@ -500,6 +509,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                         title: newsTitle.trim(),
                         content: newsContent.trim(),
                         tag: newsTag.trim() || 'НОВОСТЬ',
+                        imageUrl: newsImage || undefined,
                         date: new Date().toISOString()
                       });
                       setNewsSuccess(true);
@@ -555,6 +565,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       className="w-full ide-input min-h-24 resize-none py-2.5 leading-relaxed"
                       required
                     />
+                  </div>
+
+                  {/* Image Upload Selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
+                      Изображение (необязательно)
+                    </label>
+                    
+                    {newsImage ? (
+                      <div className="relative aspect-video rounded-xl border border-border-color overflow-hidden bg-bg-app">
+                        <img 
+                          src={newsImage} 
+                          alt="Превью" 
+                          className="w-full h-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewsImage('')}
+                          className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app">
+                        <p className="text-text-muted text-[10px] font-semibold font-sans">Выберите изображение JPG, PNG или WebP</p>
+                        <ImageUploader 
+                          onImageUploaded={(base64) => setNewsImage(base64)}
+                          maxWidth={1000}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2.5 pt-3">
