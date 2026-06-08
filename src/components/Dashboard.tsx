@@ -46,7 +46,7 @@ function triggerCelebration() {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, mode = 'home' }) => {
-  const { shows, watchProgress, loadDemoData, news } = useStreaming();
+  const { shows, watchProgress, loadDemoData } = useStreaming();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
   
@@ -325,27 +325,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
         </div>
       )}
 
-      {/* 2.5 WELCOME CARD (LATEST NEWS) */}
-      {mode === 'home' && news && news.length > 0 && (
-        <div className="space-y-4 bg-bg-card border border-border-color rounded-[32px] p-6 md:p-8 shadow-soft">
-          <div className="border-b border-border-color pb-3 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest font-mono">
-              Новости Сообщества
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {news.slice(0, 4).map((item) => (
-              <div key={item.id} className="p-5 bg-bg-app border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans">
-                <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
-                <h4 className="text-xs font-bold text-text-primary">{item.title}</h4>
-                <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
-                  {item.content}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* 3. CATALOG */}
       {mode === 'catalog' && shows.length > 0 && (

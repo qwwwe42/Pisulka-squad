@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import type { Episode, Actor } from '../types/streaming';
 import { ActorModal } from './ActorModal';
-import { CoWatchRoom } from './CoWatchRoom';
 import { getGoogleDriveEmbedUrl } from '../utils/drive';
 
 const getTrailerEmbedUrl = (url: string) => {
@@ -85,7 +84,6 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
   const [nextReleaseTimeLeft, setNextReleaseTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [selectedActor, setSelectedActor] = useState<Actor | null>(null);
   const [showTrailerModal, setShowTrailerModal] = useState(false);
-  const [showCoWatchModal, setShowCoWatchModal] = useState(false);
 
   const [nickname, setNickname] = useState(() => {
     return localStorage.getItem('penis_ink_nickname') || '';
@@ -294,13 +292,6 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
                   </button>
                 )}
 
-                <button
-                  onClick={() => setShowCoWatchModal(true)}
-                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-soft w-fit hover:scale-[1.01]"
-                >
-                  <Users className="w-4 h-4" />
-                  <span>Совместный просмотр</span>
-                </button>
               </div>
 
               {/* Sub countdown block inside detail info */}
@@ -631,14 +622,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
         <ActorModal actor={selectedActor} onClose={() => setSelectedActor(null)} />
       )}
 
-      {showCoWatchModal && (
-        <CoWatchRoom
-          showId={show.id}
-          showTitle={show.title}
-          defaultVideoUrl={show.episodes?.[0]?.driveUrl || ''}
-          onClose={() => setShowCoWatchModal(false)}
-        />
-      )}
+
 
       {showTrailerModal && show.trailerUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
