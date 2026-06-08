@@ -21,6 +21,13 @@ interface Message {
   sentAt: string;
 }
 
+interface QueuedVideo {
+  id: string;
+  title: string;
+  url: string;
+  addedBy: string;
+}
+
 interface RoomData {
   id: string;
   hostId: string;
@@ -35,6 +42,10 @@ interface RoomData {
   participants: Participant[];
   messages: Message[];
   pings?: Record<string, any>;
+  queue?: QueuedVideo[];
+  settings?: {
+    queueMode: 'host' | 'all';
+  };
 }
 
 interface CoWatchRoomProps {
@@ -44,6 +55,173 @@ interface CoWatchRoomProps {
   onClose?: () => void;
   isInline?: boolean;
 }
+
+interface VideoSource {
+  type: 'html5' | 'hls' | 'youtube' | 'vimeo' | 'twitch' | 'dailymotion' | 'vk';
+  embedUrl?: string;
+  directUrl?: string;
+  id?: string;
+}
+
+const parseVideoUrl = (url: string): VideoSource => {
+  const trimmed = url.trim();
+  
+  if (!trimmed) {
+    return { type: 'html5', directUrl: '' };
+  }
+
+  // Google Drive
+  if (trimmed.includes('drive.google.com')) {
+    return {
+      type: 'html5',
+      directUrl: trimmed
+    };
+  }
+
+  // YouTube
+  if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be')) {
+    let id = '';
+    if (trimmed.includes('youtube.com/watch')) {
+      try {
+        id = new URL(trimmed).searchParams.get('v') || '';
+      } catch (e) {
+        // Fallback simple parsing
+        const match = trimmed.match(/[?&]v=([^&#]+)/);
+        id = match ? match[1] : '';
+      }
+    } else if (trimmed.includes('youtu.be/')) {
+      id = trimmed.split('youtu.be/')[1]?.split('?')[0] || '';
+    }
+    return {
+      type: 'youtube',
+      id,
+      embedUrl: `https://www.youtube.com/embed/${id}`
+    };
+  }
+
+  // Vimeo
+  if (trimmed.includes('vimeo.com')) {
+    const match = trimmed.match(/vimeo\.com\/(\d+)/);
+    const id = match ? match[1] : '';
+    if (!id) throw new Error('Некорректная ссылка Vimeo. Ссылка должна содержать ID видео.');
+    return {
+      type: 'vimeo',
+      id,
+      embedUrl: `https://player.vimeo.com/video/${id}?api=1`
+    };
+  }
+
+  // Twitch
+  if (trimmed.includes('twitch.tv')) {
+    let channel = '';
+    let videoId = '';
+    if (trimmed.includes('/videos/')) {
+      const match = trimmed.match(/twitch\.tv\/videos\/(\d+)/);
+      videoId = match ? match[1] : '';
+      if (!videoId) throw new Error('Некорректная ссылка на Twitch видео.');
+    } else {
+      const parts = trimmed.split('/');
+      channel = parts[parts.length - 1]?.split('?')[0] || '';
+      if (!channel) throw new Error('Некорректная ссылка на Twitch канал.');
+    }
+    const parentDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    const embedUrl = videoId
+      ? `https://player.twitch.tv/?video=${videoId}&parent=${parentDomain}&autoplay=false`
+      : `https://player.twitch.tv/?channel=${channel}&parent=${parentDomain}&autoplay=false`;
+    return {
+      type: 'twitch',
+      id: videoId || channel,
+      embedUrl
+    };
+  }
+
+  // Dailymotion
+  if (trimmed.includes('dailymotion.com') || trimmed.includes('dai.ly')) {
+    let id = '';
+    if (trimmed.includes('dailymotion.com/video/')) {
+      id = trimmed.split('dailymotion.com/video/')[1]?.split('?')[0] || '';
+    } else if (trimmed.includes('dai.ly/')) {
+      id = trimmed.split('dai.ly/')[1]?.split('?')[0] || '';
+    }
+    if (!id) throw new Error('Некорректная ссылка Dailymotion. Не удалось определить ID видео.');
+    return {
+      type: 'dailymotion',
+      id,
+      embedUrl: `https://www.dailymotion.com/embed/video/${id}`
+    };
+  }
+
+  // VK Video
+  if (trimmed.includes('vk.com/video') || trimmed.includes('vkvideo.ru')) {
+    let oid = '';
+    let id = '';
+    let hash = '';
+    if (trimmed.includes('video_ext.php')) {
+      try {
+        const urlObj = new URL(trimmed);
+        oid = urlObj.searchParams.get('oid') || '';
+        id = urlObj.searchParams.get('id') || '';
+        hash = urlObj.searchParams.get('hash') || '';
+      } catch (e) {
+        // Fallback parsing
+        const oidMatch = trimmed.match(/[?&]oid=(-?\d+)/);
+        const idMatch = trimmed.match(/[?&]id=(\d+)/);
+        const hashMatch = trimmed.match(/[?&]hash=([^&#]+)/);
+        oid = oidMatch ? oidMatch[1] : '';
+        id = idMatch ? idMatch[1] : '';
+        hash = hashMatch ? hashMatch[1] : '';
+      }
+    } else {
+      const match = trimmed.match(/video(-?\d+)_(\d+)/);
+      if (match) {
+        oid = match[1];
+        id = match[2];
+      }
+    }
+    if (!oid || !id) throw new Error('Некорректная ссылка VK Video. Не удалось определить oid и id видео.');
+    return {
+      type: 'vk',
+      id: `${oid}_${id}`,
+      embedUrl: `https://vk.com/video_ext.php?oid=${oid}&id=${id}${hash ? `&hash=${hash}` : ''}`
+    };
+  }
+
+  // Direct video file formats
+  if (trimmed.endsWith('.mp4') || trimmed.includes('.mp4?') ||
+      trimmed.endsWith('.webm') || trimmed.includes('.webm?') ||
+      trimmed.endsWith('.mpd') || trimmed.includes('.mpd?')) {
+    return { type: 'html5', directUrl: trimmed };
+  }
+
+  // HLS stream
+  if (trimmed.endsWith('.m3u8') || trimmed.includes('.m3u8?')) {
+    return { type: 'hls', directUrl: trimmed };
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    // Treat general unparsed http link as a direct file link fallback
+    return { type: 'html5', directUrl: trimmed };
+  }
+
+  throw new Error('Источник не поддерживается. Укажите прямую ссылку на видеофайл (MP4/WebM/HLS) или ссылку на легальную платформу (YouTube, Vimeo, Twitch, Dailymotion, VK Video).');
+};
+
+const loadHls = (): Promise<any> => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve(null);
+      return;
+    }
+    if ((window as any).Hls) {
+      resolve((window as any).Hls);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1';
+    script.onload = () => resolve((window as any).Hls);
+    document.head.appendChild(script);
+  });
+};
 
 // Generate random 5-character digit code
 const generateRoomCode = () => {
@@ -84,6 +262,23 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   const [localPlaybackRate, setLocalPlaybackRate] = useState(1);
   const [showSpeedControls, setShowSpeedControls] = useState(false);
   const [clockOffset, setClockOffset] = useState(0);
+
+  // Local quality settings
+  const [localQuality, setLocalQuality] = useState(() => localStorage.getItem('penis_ink_quality') || 'auto');
+  const [showQualityControls, setShowQualityControls] = useState(false);
+  const [availableQualities, setAvailableQualities] = useState<string[]>(['auto']);
+  const hlsRef = useRef<any>(null);
+
+  // Fullscreen controls autohide
+  const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const controlsHovered = useRef(false);
+  const mouseTimer = useRef<number | null>(null);
+
+  // Queue tab & inputs
+  const [sideTab, setSideTab] = useState<'chat' | 'queue'>('chat');
+  const [queueInputUrl, setQueueInputUrl] = useState('');
+  const [queueInputTitle, setQueueInputTitle] = useState('');
 
   // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -128,9 +323,13 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
 
     const newCode = generateRoomCode();
     const cleanUrl = videoUrlInput.trim();
-    if (!cleanUrl) {
-      setErrorMsg('Пожалуйста, введите URL видео');
-      return;
+    if (cleanUrl) {
+      try {
+        parseVideoUrl(cleanUrl);
+      } catch (err: any) {
+        setErrorMsg(err.message);
+        return;
+      }
     }
 
     const hostParticipant: Participant = {
@@ -139,7 +338,7 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       joinedAt: new Date().toISOString()
     };
 
-    const finalShowTitle = showTitle || customShowTitle.trim() || 'Произвольное видео';
+    const finalShowTitle = cleanUrl ? (showTitle || customShowTitle.trim() || 'Произвольное видео') : 'Ожидание видео';
     const finalShowId = showId || 'custom';
 
     const newRoom: RoomData = {
@@ -153,6 +352,10 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       currentTime: 0,
       lastUpdated: new Date().toISOString(),
       participants: [hostParticipant],
+      queue: [],
+      settings: {
+        queueMode: 'host'
+      },
       messages: [
         {
           id: 'system-created',
@@ -507,6 +710,9 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   useEffect(() => {
     if (!room || !isJoined || isHost) return;
 
+    const source = room.videoUrl ? parseVideoUrl(room.videoUrl) : null;
+    if (!source) return;
+
     const player = videoRef.current;
     const ytPlayer = ytPlayerRef.current;
 
@@ -529,60 +735,48 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       ? room.currentTime + elapsedSeconds * (room.playbackRate || 1)
       : room.currentTime;
 
-    if (isYoutube) {
+    if (source.type === 'youtube') {
       if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
         const ytState = ytPlayer.getPlayerState();
-        // Play/Pause sync
         if (room.isPlaying && ytState !== (window as any).YT.PlayerState.PLAYING) {
-          ignoreYTEvent.current++;
-          ytPlayer.playVideo();
+          sendPlayerCommand('play');
         } else if (!room.isPlaying && ytState !== (window as any).YT.PlayerState.PAUSED) {
-          ignoreYTEvent.current++;
-          ytPlayer.pauseVideo();
+          sendPlayerCommand('pause');
         }
-
-        // Time sync
         const ytTime = ytPlayer.getCurrentTime();
         if (Math.abs(ytTime - targetTime) > 1.0) {
-          ignoreYTEvent.current++;
-          ytPlayer.seekTo(targetTime, true);
+          sendPlayerCommand('seek', targetTime);
         }
       }
-    } else {
+    } else if (source.type === 'html5' || source.type === 'hls') {
       if (player) {
-        // Play/Pause sync
         if (room.isPlaying && player.paused) {
-          if (ignorePlayEvent.current === 0) {
-            ignorePlayEvent.current++;
-            player.play().catch(() => {
-              ignorePlayEvent.current = Math.max(0, ignorePlayEvent.current - 1);
-            });
-          }
+          sendPlayerCommand('play');
         } else if (!room.isPlaying && !player.paused) {
-          if (ignorePauseEvent.current === 0) {
-            ignorePauseEvent.current++;
-            player.pause();
-          }
+          sendPlayerCommand('pause');
         }
-
-        // Time sync
         const diff = player.currentTime - targetTime;
         if (Math.abs(diff) > 1.0) {
-          // Hard seek
-          ignoreSeekEvent.current++;
-          player.currentTime = targetTime;
+          sendPlayerCommand('seek', targetTime);
           player.playbackRate = room.playbackRate || 1;
         } else if (Math.abs(diff) > 0.15) {
           // Soft drift correction by modifying playbackRate
           const adjustment = diff < 0 ? 1.05 : 0.95;
           player.playbackRate = (room.playbackRate || 1) * adjustment;
         } else {
-          // Reset to normal rate
           player.playbackRate = room.playbackRate || 1;
         }
       }
+    } else {
+      // Vimeo, Dailymotion, VK Video
+      if (room.isPlaying) {
+        sendPlayerCommand('play');
+      } else {
+        sendPlayerCommand('pause');
+      }
+      sendPlayerCommand('seek', targetTime);
     }
-  }, [room?.isPlaying, room?.currentTime, room?.lastUpdated, room?.playbackRate, isHost, isJoined, isYoutube, clockOffset]);
+  }, [room?.isPlaying, room?.currentTime, room?.lastUpdated, room?.playbackRate, isHost, isJoined, clockOffset]);
 
   // Host Player Event Handlers
   const handleHostPlay = () => {
@@ -631,6 +825,524 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       lastUpdated: serverTimestamp()
     }).catch(console.error);
   };
+
+  const sendPlayerCommand = (command: 'play' | 'pause' | 'seek', value?: number) => {
+    const source = room?.videoUrl ? parseVideoUrl(room.videoUrl) : null;
+    if (!source) return;
+
+    if (source.type === 'youtube') {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+        ignoreYTEvent.current++;
+        if (command === 'play') {
+          ytPlayer.playVideo();
+        } else if (command === 'pause') {
+          ytPlayer.pauseVideo();
+        } else if (command === 'seek' && value !== undefined) {
+          ytPlayer.seekTo(value, true);
+        }
+      }
+    } else if (source.type === 'html5' || source.type === 'hls') {
+      const player = videoRef.current;
+      if (player) {
+        if (command === 'play') {
+          if (player.paused) {
+            ignorePlayEvent.current++;
+            player.play().catch(() => {
+              ignorePlayEvent.current = Math.max(0, ignorePlayEvent.current - 1);
+            });
+          }
+        } else if (command === 'pause') {
+          if (!player.paused) {
+            ignorePauseEvent.current++;
+            player.pause();
+          }
+        } else if (command === 'seek' && value !== undefined) {
+          if (Math.abs(player.currentTime - value) > 1.0) {
+            ignoreSeekEvent.current++;
+            player.currentTime = value;
+          }
+        }
+      }
+    } else {
+      const iframe = youtubeRef.current;
+      if (!iframe || !iframe.contentWindow) return;
+
+      if (source.type === 'vimeo') {
+        if (command === 'play') {
+          iframe.contentWindow.postMessage(JSON.stringify({ method: 'play' }), '*');
+        } else if (command === 'pause') {
+          iframe.contentWindow.postMessage(JSON.stringify({ method: 'pause' }), '*');
+        } else if (command === 'seek' && value !== undefined) {
+          iframe.contentWindow.postMessage(JSON.stringify({ method: 'seekTo', value }), '*');
+        }
+      } else if (source.type === 'dailymotion') {
+        if (command === 'play') {
+          iframe.contentWindow.postMessage(JSON.stringify({ command: 'play' }), '*');
+        } else if (command === 'pause') {
+          iframe.contentWindow.postMessage(JSON.stringify({ command: 'pause' }), '*');
+        } else if (command === 'seek' && value !== undefined) {
+          iframe.contentWindow.postMessage(JSON.stringify({ command: 'seek', value }), '*');
+        }
+      } else if (source.type === 'vk') {
+        if (command === 'play') {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', command: 'play' }), '*');
+        } else if (command === 'pause') {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', command: 'pause' }), '*');
+        } else if (command === 'seek' && value !== undefined) {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', command: 'seek', seekTime: value }), '*');
+        }
+      } else if (source.type === 'twitch') {
+        if (command === 'play') {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', command: 'play' }), '*');
+        } else if (command === 'pause') {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', command: 'pause' }), '*');
+        }
+      }
+    }
+  };
+
+  const handleAddToQueue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!queueInputUrl.trim() || !roomCode || !room) return;
+    
+    const canModifyQueue = isHost || room.settings?.queueMode === 'all';
+    if (!canModifyQueue) {
+      alert('У вас нет прав для изменения очереди');
+      return;
+    }
+
+    try {
+      const cleanUrl = queueInputUrl.trim();
+      parseVideoUrl(cleanUrl); // Validate first
+
+      const title = queueInputTitle.trim() || 'Видео из очереди';
+      const newVideo: QueuedVideo = {
+        id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        title,
+        url: cleanUrl,
+        addedBy: nickname
+      };
+
+      const roomRef = doc(db, 'rooms', roomCode);
+      const currentQueue = room.queue || [];
+      await updateDoc(roomRef, {
+        queue: [...currentQueue, newVideo],
+        messages: arrayUnion({
+          id: `system-qadd-${Date.now()}`,
+          senderId: 'system',
+          senderName: 'Система',
+          text: `${nickname} добавил видео "${title}" в очередь.`,
+          sentAt: new Date().toISOString()
+        })
+      });
+
+      setQueueInputUrl('');
+      setQueueInputTitle('');
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteFromQueue = async (itemId: string) => {
+    if (!roomCode || !room) return;
+    
+    const canModifyQueue = isHost || room.settings?.queueMode === 'all';
+    if (!canModifyQueue) return;
+
+    const currentQueue = room.queue || [];
+    const item = currentQueue.find(q => q.id === itemId);
+    const updatedQueue = currentQueue.filter(q => q.id !== itemId);
+
+    try {
+      const roomRef = doc(db, 'rooms', roomCode);
+      await updateDoc(roomRef, {
+        queue: updatedQueue,
+        messages: arrayUnion({
+          id: `system-qdel-${Date.now()}`,
+          senderId: 'system',
+          senderName: 'Система',
+          text: `${nickname} удалил видео "${item?.title || 'Без названия'}" из очереди.`,
+          sentAt: new Date().toISOString()
+        })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePlayQueueItem = async (itemId: string) => {
+    if (!roomCode || !room) return;
+    
+    const canModifyQueue = isHost || room.settings?.queueMode === 'all';
+    if (!canModifyQueue) return;
+
+    const currentQueue = room.queue || [];
+    const itemIndex = currentQueue.findIndex(q => q.id === itemId);
+    if (itemIndex === -1) return;
+
+    const item = currentQueue[itemIndex];
+    const updatedQueue = currentQueue.filter(q => q.id !== itemId);
+
+    try {
+      const roomRef = doc(db, 'rooms', roomCode);
+      await updateDoc(roomRef, {
+        videoUrl: item.url,
+        showTitle: item.title,
+        isPlaying: true,
+        currentTime: 0,
+        lastUpdated: serverTimestamp(),
+        queue: updatedQueue,
+        messages: arrayUnion({
+          id: `system-qplay-${Date.now()}`,
+          senderId: 'system',
+          senderName: 'Система',
+          text: `${nickname} запустил воспроизведение видео "${item.title}" из очереди.`,
+          sentAt: new Date().toISOString()
+        })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMoveQueueItem = async (itemId: string, direction: 'up' | 'down') => {
+    if (!roomCode || !room) return;
+
+    const canModifyQueue = isHost || room.settings?.queueMode === 'all';
+    if (!canModifyQueue) return;
+
+    const currentQueue = [...(room.queue || [])];
+    const index = currentQueue.findIndex(q => q.id === itemId);
+    if (index === -1) return;
+
+    if (direction === 'up' && index > 0) {
+      const temp = currentQueue[index];
+      currentQueue[index] = currentQueue[index - 1];
+      currentQueue[index - 1] = temp;
+    } else if (direction === 'down' && index < currentQueue.length - 1) {
+      const temp = currentQueue[index];
+      currentQueue[index] = currentQueue[index + 1];
+      currentQueue[index + 1] = temp;
+    } else {
+      return;
+    }
+
+    try {
+      const roomRef = doc(db, 'rooms', roomCode);
+      await updateDoc(roomRef, {
+        queue: currentQueue
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const toggleQueueMode = async () => {
+    if (!roomCode || !room || !isHost) return;
+    const nextMode = room.settings?.queueMode === 'host' ? 'all' : 'host';
+    try {
+      const roomRef = doc(db, 'rooms', roomCode);
+      await updateDoc(roomRef, {
+        'settings.queueMode': nextMode
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleVideoEnded = async () => {
+    if (!isHost || !roomCode || !room) return;
+
+    const queue = room.queue || [];
+    if (queue.length > 0) {
+      const nextVideo = queue[0];
+      const updatedQueue = queue.slice(1);
+
+      try {
+        await updateDoc(doc(db, 'rooms', roomCode), {
+          videoUrl: nextVideo.url,
+          showTitle: nextVideo.title,
+          isPlaying: true,
+          currentTime: 0,
+          lastUpdated: serverTimestamp(),
+          queue: updatedQueue,
+          messages: arrayUnion({
+            id: `system-next-${Date.now()}`,
+            senderId: 'system',
+            senderName: 'Система',
+            text: `Автопереход к следующему видео: "${nextVideo.title}"`,
+            sentAt: new Date().toISOString()
+          })
+        });
+      } catch (e) {
+        console.error('Failed to transition to next video in queue', e);
+      }
+    } else {
+      await updateDoc(doc(db, 'rooms', roomCode), {
+        isPlaying: false,
+        lastUpdated: serverTimestamp()
+      });
+    }
+  };
+
+  const applyHlsQuality = (hls: any, quality: string) => {
+    if (!hls) return;
+    if (quality === 'auto') {
+      hls.currentLevel = -1;
+    } else {
+      const height = parseInt(quality);
+      const levelIndex = hls.levels.findIndex((l: any) => l.height === height);
+      if (levelIndex !== -1) {
+        hls.currentLevel = levelIndex;
+      }
+    }
+  };
+
+  const handleQualityChange = (quality: string) => {
+    setLocalQuality(quality);
+    localStorage.setItem('penis_ink_quality', quality);
+    setShowQualityControls(false);
+
+    const source = room?.videoUrl ? parseVideoUrl(room.videoUrl) : null;
+    if (source?.type === 'hls' && hlsRef.current) {
+      applyHlsQuality(hlsRef.current, quality);
+    } else if (source?.type === 'youtube' && ytPlayerRef.current) {
+      let ytQuality = 'default';
+      if (quality === '1080p') ytQuality = 'hd1080';
+      else if (quality === '720p') ytQuality = 'hd720';
+      else if (quality === '480p') ytQuality = 'large';
+      else if (quality === '360p') ytQuality = 'medium';
+      else if (quality === '240p') ytQuality = 'small';
+      else if (quality === '144p') ytQuality = 'tiny';
+      
+      if (typeof ytPlayerRef.current.setPlaybackQuality === 'function') {
+        ytPlayerRef.current.setPlaybackQuality(ytQuality);
+      }
+    }
+  };
+
+  // HLS loading and management useEffect
+  useEffect(() => {
+    if (!room?.videoUrl) return;
+    const source = parseVideoUrl(room.videoUrl);
+    const video = videoRef.current;
+
+    if (source.type === 'hls' && video) {
+      let hlsInstance: any = null;
+      loadHls().then((Hls) => {
+        if (!Hls) return;
+        if (Hls.isSupported()) {
+          hlsInstance = new Hls();
+          hlsRef.current = hlsInstance;
+          hlsInstance.loadSource(source.directUrl || room.videoUrl);
+          hlsInstance.attachMedia(video);
+
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+            const qualities = hlsInstance.levels.map((l: any) => `${l.height}p`);
+            const uniqueQualities = Array.from(new Set(qualities)) as string[];
+            setAvailableQualities(['auto', ...uniqueQualities]);
+            
+            const saved = localStorage.getItem('penis_ink_quality') || 'auto';
+            applyHlsQuality(hlsInstance, saved);
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = source.directUrl || room.videoUrl;
+        }
+      });
+
+      return () => {
+        if (hlsInstance) {
+          hlsInstance.destroy();
+        }
+        hlsRef.current = null;
+      };
+    } else if (source.type === 'html5' && video) {
+      video.src = source.directUrl || room.videoUrl;
+      setAvailableQualities(['auto']);
+    }
+  }, [room?.videoUrl]);
+
+  // YouTube quality checker useEffect
+  useEffect(() => {
+    if (!isYoutube || !isJoined) return;
+    const interval = setInterval(() => {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.getAvailableQualityLevels === 'function') {
+        const levels = ytPlayer.getAvailableQualityLevels();
+        if (levels && levels.length > 0) {
+          clearInterval(interval);
+          const mapped = levels.map((l: string) => {
+            if (l === 'hd1080') return '1080p';
+            if (l === 'hd720') return '720p';
+            if (l === 'large') return '480p';
+            if (l === 'medium') return '360p';
+            if (l === 'small') return '240p';
+            if (l === 'tiny') return '144p';
+            return '';
+          }).filter(Boolean);
+          setAvailableQualities(['auto', ...mapped]);
+          
+          const saved = localStorage.getItem('penis_ink_quality') || 'auto';
+          let ytQuality = 'default';
+          if (saved === '1080p') ytQuality = 'hd1080';
+          else if (saved === '720p') ytQuality = 'hd720';
+          else if (saved === '480p') ytQuality = 'large';
+          else if (saved === '360p') ytQuality = 'medium';
+          else if (saved === '240p') ytQuality = 'small';
+          else if (saved === '144p') ytQuality = 'tiny';
+          ytPlayer.setPlaybackQuality(ytQuality);
+        }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isYoutube, isJoined, room?.videoUrl]);
+
+  // General iframe message listener for embeds (Vimeo, Dailymotion, VK Video)
+  useEffect(() => {
+    const handleWindowMessage = (e: MessageEvent) => {
+      if (typeof e.data !== 'string' && typeof e.data !== 'object') return;
+      
+      let parsed: any = {};
+      if (typeof e.data === 'string') {
+        try {
+          parsed = JSON.parse(e.data);
+        } catch (err) {
+          if (e.data.includes('=')) {
+            const [key, val] = e.data.split('=');
+            if (key === 'timeupdate') {
+              setLocalCurrentTime(parseFloat(val));
+            } else if (key === 'durationchange') {
+              setLocalDuration(parseFloat(val));
+            }
+          }
+          return;
+        }
+      } else {
+        parsed = e.data;
+      }
+
+      // Vimeo
+      if (parsed.event === 'timeupdate' && parsed.data) {
+        if (parsed.data.seconds !== undefined) setLocalCurrentTime(parsed.data.seconds);
+        if (parsed.data.duration !== undefined) setLocalDuration(parsed.data.duration);
+      }
+      
+      // VK
+      if (parsed.event === 'timeupdate' && parsed.currentTime !== undefined) {
+        setLocalCurrentTime(parsed.currentTime);
+      }
+      if (parsed.event === 'durationchange' && parsed.duration !== undefined) {
+        setLocalDuration(parsed.duration);
+      }
+
+      // Video Ended checks
+      if (parsed.event === 'finish' || parsed.event === 'ended' || parsed.event === 'finished' || parsed.event === 'video_ended' || e.data === 'ended') {
+        handleVideoEnded();
+      }
+
+      if (!isHost || !roomCode) return;
+
+      // Vimeo Host Play/Pause
+      if (parsed.event === 'play') {
+        updateDoc(doc(db, 'rooms', roomCode), {
+          isPlaying: true,
+          lastUpdated: serverTimestamp()
+        }).catch(console.error);
+      }
+      if (parsed.event === 'pause') {
+        updateDoc(doc(db, 'rooms', roomCode), {
+          isPlaying: false,
+          lastUpdated: serverTimestamp()
+        }).catch(console.error);
+      }
+
+      // VK Host Play/Pause
+      if (parsed.event === 'started' || parsed.event === 'resumed') {
+        updateDoc(doc(db, 'rooms', roomCode), {
+          isPlaying: true,
+          lastUpdated: serverTimestamp()
+        }).catch(console.error);
+      }
+      if (parsed.event === 'paused') {
+        updateDoc(doc(db, 'rooms', roomCode), {
+          isPlaying: false,
+          lastUpdated: serverTimestamp()
+        }).catch(console.error);
+      }
+    };
+
+    window.addEventListener('message', handleWindowMessage);
+    return () => window.removeEventListener('message', handleWindowMessage);
+  }, [isHost, roomCode, room?.queue]);
+
+  // Fullscreen event listener and autohide logic
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isCurrentlyFullscreen);
+      if (!isCurrentlyFullscreen) {
+        setShowControls(true);
+        if (mouseTimer.current) {
+          window.clearTimeout(mouseTimer.current);
+          mouseTimer.current = null;
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      if (mouseTimer.current) {
+        window.clearTimeout(mouseTimer.current);
+      }
+    };
+  }, []);
+
+  const resetHideTimer = () => {
+    setShowControls(true);
+
+    if (mouseTimer.current) {
+      window.clearTimeout(mouseTimer.current);
+    }
+
+    if (!document.fullscreenElement) {
+      mouseTimer.current = null;
+      return;
+    }
+
+    mouseTimer.current = window.setTimeout(() => {
+      if (!controlsHovered.current) {
+        setShowControls(false);
+      }
+    }, 2500);
+  };
+
+  useEffect(() => {
+    const isCurrentlyFullscreen = !!document.fullscreenElement;
+    if (!isCurrentlyFullscreen) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseMove = () => {
+      resetHideTimer();
+    };
+
+    const handleKeyDown = () => {
+      resetHideTimer();
+    };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('keydown', handleKeyDown);
+
+    resetHideTimer();
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
 
   // Helper to extract YouTube video ID
   const getYoutubeId = (url: string) => {
@@ -982,34 +1694,106 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
               {/* Player Area with custom controls */}
               <div 
                 ref={containerRef}
-                className="flex-1 bg-black rounded-2xl overflow-hidden border border-border-color shadow-soft relative mt-4 min-h-[300px] flex items-center justify-center group/player"
+                className={`flex-1 bg-black rounded-2xl overflow-hidden border border-border-color shadow-soft relative mt-4 min-h-[300px] flex items-center justify-center group/player ${
+                  isFullscreen && !showControls ? 'cursor-none' : ''
+                }`}
               >
-                {isYoutube ? (
-                  // YouTube Video Player
-                  <iframe 
-                    ref={youtubeRef}
-                    src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=0&mute=${localIsMuted ? 1 : 0}&rel=0&controls=0`}
-                    className="w-full h-full border-none absolute inset-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+                {!room?.videoUrl ? (
+                  // Empty Room Placeholder
+                  <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 max-w-md">
+                    <div className="w-14 h-14 rounded-2xl bg-accent-light border border-accent-color/20 flex items-center justify-center text-accent-color shadow-soft animate-pulse">
+                      <Film className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-white">Видео не выбрано</h4>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {isHost 
+                          ? 'Укажите ссылку на видео ниже или добавьте видео в очередь.' 
+                          : 'Организатор еще не выбрал видео для просмотра.'}
+                      </p>
+                    </div>
+                    {isHost && (
+                      <div className="w-full flex gap-2 pt-2">
+                        <input 
+                          type="text" 
+                          placeholder="Ссылка на видео (YouTube, MP4, HLS...)" 
+                          value={videoUrlInput}
+                          onChange={(e) => setVideoUrlInput(e.target.value)}
+                          className="flex-1 ide-input text-xs py-2 bg-slate-900 border-slate-800 text-white rounded-xl"
+                        />
+                        <button 
+                          onClick={async () => {
+                            const cleanUrl = videoUrlInput.trim();
+                            if (!cleanUrl) return;
+                            try {
+                              parseVideoUrl(cleanUrl);
+                              const roomRef = doc(db, 'rooms', roomCode);
+                              await updateDoc(roomRef, {
+                                videoUrl: cleanUrl,
+                                showTitle: 'Произвольное видео',
+                                isPlaying: false,
+                                currentTime: 0,
+                                lastUpdated: serverTimestamp()
+                              });
+                            } catch (err: any) {
+                              setErrorMsg(err.message);
+                              alert(err.message);
+                            }
+                          }}
+                          className="px-4 py-2 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft cursor-pointer transition-all active:scale-95"
+                        >
+                          Выбрать
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  // HTML5 Direct Video Player
-                  <video 
-                    ref={videoRef}
-                    src={room?.videoUrl}
-                    className="w-full h-full object-contain absolute inset-0"
-                    controls={false}
-                    onPlay={isHost ? handleHostPlay : undefined}
-                    onPause={isHost ? handleHostPause : undefined}
-                    onSeeked={isHost ? handleHostSeek : undefined}
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                  />
+                  // Active player rendering
+                  <>
+                    {(() => {
+                      const source = parseVideoUrl(room.videoUrl);
+                      if (source.type === 'youtube') {
+                        return (
+                          <iframe 
+                            ref={youtubeRef}
+                            src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=0&mute=${localIsMuted ? 1 : 0}&rel=0&controls=0`}
+                            className="w-full h-full border-none absolute inset-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                            allowFullScreen
+                          />
+                        );
+                      } else if (source.type === 'vimeo' || source.type === 'twitch' || source.type === 'dailymotion' || source.type === 'vk') {
+                        return (
+                          <iframe 
+                            ref={youtubeRef}
+                            src={source.embedUrl}
+                            className="w-full h-full border-none absolute inset-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                            allowFullScreen
+                          />
+                        );
+                      } else {
+                        // html5 or hls
+                        return (
+                          <video 
+                            ref={videoRef}
+                            className="w-full h-full object-contain absolute inset-0"
+                            controls={false}
+                            onPlay={isHost ? handleHostPlay : undefined}
+                            onPause={isHost ? handleHostPause : undefined}
+                            onSeeked={isHost ? handleHostSeek : undefined}
+                            onTimeUpdate={handleTimeUpdate}
+                            onLoadedMetadata={handleLoadedMetadata}
+                            onEnded={handleVideoEnded}
+                          />
+                        );
+                      }
+                    })()}
+                  </>
                 )}
 
                 {/* Overlay to block direct guest clicks on video content but keep controls clickable */}
-                {!isHost && (
+                {!isHost && room?.videoUrl && (
                   <div 
                     className="absolute inset-x-0 top-0 bottom-16 bg-transparent cursor-not-allowed z-10" 
                     title="Управление плеером доступно только создателю комнаты" 
@@ -1017,89 +1801,131 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
                 )}
 
                 {/* Custom Controls Bar */}
-                <div className="absolute bottom-0 inset-x-0 h-16 bg-slate-950/80 border-t border-slate-900/60 opacity-0 group-hover/player:opacity-100 focus-within:opacity-100 transition-opacity duration-300 flex flex-col justify-end px-4 pb-2 z-20 space-y-1.5 select-none">
-                  
-                  {/* Progress Bar */}
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-[9px] font-mono text-slate-300">{formatTime(localCurrentTime)}</span>
-                    <input 
-                      type="range"
-                      min="0"
-                      max={localDuration || 100}
-                      value={localCurrentTime}
-                      onChange={handleSeekChange}
-                      disabled={!isHost}
-                      className={`flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600 hover:h-1.5 transition-all ${!isHost ? 'opacity-75 cursor-not-allowed' : ''}`}
-                    />
-                    <span className="text-[9px] font-mono text-slate-300">{formatTime(localDuration)}</span>
-                  </div>
-
-                  {/* Control Buttons Row */}
-                  <div className="flex items-center justify-between text-slate-300 text-xs">
-                    <div className="flex items-center gap-4">
-                      {/* Play/Pause */}
-                      <button 
-                        onClick={handlePlayPauseClick} 
+                {room?.videoUrl && (
+                  <div 
+                    onMouseEnter={() => { controlsHovered.current = true; resetHideTimer(); }}
+                    onMouseLeave={() => { controlsHovered.current = false; resetHideTimer(); }}
+                    className={`absolute bottom-0 inset-x-0 h-16 bg-slate-950/80 border-t border-slate-900/60 transition-all duration-300 flex flex-col justify-end px-4 pb-2 z-20 space-y-1.5 select-none ${
+                      isFullscreen 
+                        ? (showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none')
+                        : 'opacity-0 group-hover/player:opacity-100 focus-within:opacity-100'
+                    }`}
+                  >
+                    
+                    {/* Progress Bar */}
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[9px] font-mono text-slate-300">{formatTime(localCurrentTime)}</span>
+                      <input 
+                        type="range"
+                        min="0"
+                        max={localDuration || 100}
+                        value={localCurrentTime}
+                        onChange={handleSeekChange}
                         disabled={!isHost}
-                        className={`hover:text-purple-400 transition-colors ${!isHost ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        {room?.isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                      </button>
-
-                      {/* Volume Controls */}
-                      <div className="flex items-center gap-1.5 group/volume">
-                        <button onClick={toggleLocalMute} className="hover:text-purple-400 transition-colors cursor-pointer">
-                          {localIsMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                        </button>
-                        <input 
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={localIsMuted ? 0 : localVolume}
-                          onChange={handleVolumeSliderChange}
-                          className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-slate-300 group-hover/volume:w-20 transition-all duration-300"
-                        />
-                      </div>
+                        className={`flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600 hover:h-1.5 transition-all ${!isHost ? 'opacity-75 cursor-not-allowed' : ''}`}
+                      />
+                      <span className="text-[9px] font-mono text-slate-300">{formatTime(localDuration)}</span>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      {/* Playback speed selector (only for host) */}
-                      {isHost && (
+                    {/* Control Buttons Row */}
+                    <div className="flex items-center justify-between text-slate-300 text-xs">
+                      <div className="flex items-center gap-4">
+                        {/* Play/Pause */}
+                        <button 
+                          onClick={handlePlayPauseClick} 
+                          disabled={!isHost}
+                          className={`hover:text-purple-400 transition-colors ${!isHost ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          {room?.isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                        </button>
+
+                        {/* Volume Controls */}
+                        <div className="flex items-center gap-1.5 group/volume">
+                          <button onClick={toggleLocalMute} className="hover:text-purple-400 transition-colors cursor-pointer">
+                            {localIsMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                          </button>
+                          <input 
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={localIsMuted ? 0 : localVolume}
+                            onChange={handleVolumeSliderChange}
+                            className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-slate-300 group-hover/volume:w-20 transition-all duration-300"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        {/* Local Quality selector */}
                         <div className="relative">
                           <button 
-                            onClick={() => setShowSpeedControls(!showSpeedControls)}
+                            onClick={() => {
+                              setShowQualityControls(!showQualityControls);
+                              setShowSpeedControls(false);
+                            }}
                             className="hover:text-purple-400 transition-colors text-[10px] font-mono font-bold flex items-center gap-0.5 border border-slate-800 rounded px-1.5 py-0.5 cursor-pointer bg-slate-900"
                           >
-                            <Settings className="w-3.5 h-3.5" />
-                            <span>{localPlaybackRate}x</span>
+                            <span>{localQuality}</span>
                           </button>
 
-                          {showSpeedControls && (
-                            <div className="absolute bottom-8 right-0 bg-slate-950 border border-slate-900 rounded-lg py-1 shadow-2xl text-[10px] min-w-[65px] z-30 flex flex-col">
-                              {[0.5, 1, 1.25, 1.5, 2].map((rate) => (
+                          {showQualityControls && (
+                            <div className="absolute bottom-8 right-0 bg-slate-950 border border-slate-900 rounded-lg py-1 shadow-2xl text-[10px] min-w-[75px] z-30 flex flex-col max-h-[150px] overflow-y-auto">
+                              {availableQualities.map((q) => (
                                 <button
-                                  key={rate}
-                                  onClick={() => changeHostSpeed(rate)}
+                                  key={q}
+                                  onClick={() => handleQualityChange(q)}
                                   className={`w-full text-left px-2.5 py-1.5 hover:bg-purple-600 hover:text-white transition-colors cursor-pointer ${
-                                    localPlaybackRate === rate ? 'text-purple-400 font-bold' : 'text-slate-300'
+                                    localQuality === q ? 'text-purple-400 font-bold' : 'text-slate-300'
                                   }`}
                                 >
-                                  {rate}x
+                                  {q}
                                 </button>
                               ))}
                             </div>
                           )}
                         </div>
-                      )}
 
-                      {/* Fullscreen */}
-                      <button onClick={toggleFullscreen} className="hover:text-purple-400 transition-colors cursor-pointer">
-                        <Maximize2 className="w-4 h-4" />
-                      </button>
+                        {/* Playback speed selector (only for host) */}
+                        {isHost && (
+                          <div className="relative">
+                            <button 
+                              onClick={() => {
+                                setShowSpeedControls(!showSpeedControls);
+                                setShowQualityControls(false);
+                              }}
+                              className="hover:text-purple-400 transition-colors text-[10px] font-mono font-bold flex items-center gap-0.5 border border-slate-800 rounded px-1.5 py-0.5 cursor-pointer bg-slate-900"
+                            >
+                              <Settings className="w-3.5 h-3.5" />
+                              <span>{localPlaybackRate}x</span>
+                            </button>
+
+                            {showSpeedControls && (
+                              <div className="absolute bottom-8 right-0 bg-slate-950 border border-slate-900 rounded-lg py-1 shadow-2xl text-[10px] min-w-[65px] z-30 flex flex-col">
+                                {[0.5, 1, 1.25, 1.5, 2].map((rate) => (
+                                  <button
+                                    key={rate}
+                                    onClick={() => changeHostSpeed(rate)}
+                                    className={`w-full text-left px-2.5 py-1.5 hover:bg-purple-600 hover:text-white transition-colors cursor-pointer ${
+                                      localPlaybackRate === rate ? 'text-purple-400 font-bold' : 'text-slate-300'
+                                    }`}
+                                  >
+                                    {rate}x
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Fullscreen */}
+                        <button onClick={toggleFullscreen} className="hover:text-purple-400 transition-colors cursor-pointer">
+                          <Maximize2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
               </div>
 
@@ -1140,64 +1966,186 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
                 </div>
               </div>
 
-              {/* Live Chat Box Header */}
-              <div className="px-4 py-2 border-b border-border-color bg-bg-app/50 flex items-center gap-1.5 shrink-0">
-                <MessageSquare className="w-4 h-4 text-accent-color" />
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">Общий чат комнаты</span>
-              </div>
-
-              {/* Messages viewport */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3 font-sans min-h-0 flex flex-col">
-                {room?.messages.map((msg, index) => {
-                  const isSystem = msg.senderId === 'system';
-                  const isSelf = msg.senderId === userId;
-                  
-                  if (isSystem) {
-                    return (
-                      <div key={msg.id || index} className="text-center">
-                        <span className="inline-block bg-bg-card border border-border-color text-text-muted px-2.5 py-0.5 rounded-full text-[9px] font-semibold leading-relaxed">
-                          {msg.text}
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div 
-                      key={msg.id || index} 
-                      className={`flex flex-col gap-0.5 max-w-[85%] ${isSelf ? 'self-end items-end' : 'self-start items-start'}`}
-                    >
-                      <span className="text-[8px] font-bold text-text-muted px-1 truncate">{msg.senderName}</span>
-                      <div 
-                        className={`p-2.5 rounded-2xl text-xs font-semibold leading-relaxed shadow-soft ${isSelf 
-                          ? 'bg-accent-color text-white rounded-tr-xs' 
-                          : 'bg-bg-card border border-border-color text-text-primary rounded-tl-xs'}`}
-                      >
-                        {msg.text}
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={chatEndRef} />
-              </div>
-
-              {/* Chat Input form */}
-              <form onSubmit={handleSendMessage} className="p-4 bg-bg-card border-t border-border-color shrink-0 flex gap-2">
-                <input 
-                  type="text" 
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Сообщение..."
-                  className="flex-1 ide-input text-xs py-2 rounded-xl"
-                  required
-                />
+              {/* TAB SELECTOR for Sidebar */}
+              <div className="flex bg-bg-app/50 border-b border-border-color p-1 text-xs font-bold text-text-secondary select-none shrink-0">
                 <button 
-                  type="submit" 
-                  className="p-2 bg-accent-color hover:bg-accent-hover text-white rounded-xl cursor-pointer transition-all shadow-soft flex items-center justify-center shrink-0 active:scale-95"
+                  onClick={() => setSideTab('chat')}
+                  className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${sideTab === 'chat' ? 'bg-bg-card text-text-primary shadow-soft' : 'hover:text-text-primary'}`}
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Чат</span>
                 </button>
-              </form>
+                <button 
+                  onClick={() => setSideTab('queue')}
+                  className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${sideTab === 'queue' ? 'bg-bg-card text-text-primary shadow-soft' : 'hover:text-text-primary'}`}
+                >
+                  <Film className="w-3.5 h-3.5" />
+                  <span>Очередь ({room?.queue?.length || 0})</span>
+                </button>
+              </div>
+
+              {sideTab === 'chat' ? (
+                <>
+                  {/* Messages viewport */}
+                  <div className="flex-1 p-4 overflow-y-auto space-y-3 font-sans min-h-0 flex flex-col">
+                    {room?.messages.map((msg, index) => {
+                      const isSystem = msg.senderId === 'system';
+                      const isSelf = msg.senderId === userId;
+                      
+                      if (isSystem) {
+                        return (
+                          <div key={msg.id || index} className="text-center">
+                            <span className="inline-block bg-bg-card border border-border-color text-text-muted px-2.5 py-0.5 rounded-full text-[9px] font-semibold leading-relaxed">
+                              {msg.text}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div 
+                          key={msg.id || index} 
+                          className={`flex flex-col gap-0.5 max-w-[85%] ${isSelf ? 'self-end items-end' : 'self-start items-start'}`}
+                        >
+                          <span className="text-[8px] font-bold text-text-muted px-1 truncate">{msg.senderName}</span>
+                          <div 
+                            className={`p-2.5 rounded-2xl text-xs font-semibold leading-relaxed shadow-soft ${isSelf 
+                              ? 'bg-accent-color text-white rounded-tr-xs' 
+                              : 'bg-bg-card border border-border-color text-text-primary rounded-tl-xs'}`}
+                          >
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Chat Input form */}
+                  <form onSubmit={handleSendMessage} className="p-4 bg-bg-card border-t border-border-color shrink-0 flex gap-2">
+                    <input 
+                      type="text" 
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Сообщение..."
+                      className="flex-1 ide-input text-xs py-2 rounded-xl"
+                      required
+                    />
+                    <button 
+                      type="submit" 
+                      className="p-2 bg-accent-color hover:bg-accent-hover text-white rounded-xl cursor-pointer transition-all shadow-soft flex items-center justify-center shrink-0 active:scale-95"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col min-h-0 bg-bg-app/20">
+                  {/* Host Queue settings */}
+                  {isHost && (
+                    <div className="p-3 border-b border-border-color bg-bg-app/50 flex items-center justify-between shrink-0">
+                      <span className="text-[10px] font-bold text-text-secondary">Кто может менять очередь:</span>
+                      <button
+                        onClick={toggleQueueMode}
+                        className="px-2 py-1 bg-bg-card border border-border-color rounded-lg text-[9px] font-bold text-text-primary hover:bg-bg-app transition-all cursor-pointer shadow-soft"
+                      >
+                        {room?.settings?.queueMode === 'host' ? 'Только хост' : 'Все участники'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* List of queue items */}
+                  <div className="flex-1 p-3 overflow-y-auto space-y-2.5 min-h-0">
+                    {!room?.queue || room.queue.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-4 space-y-2 text-text-muted">
+                        <Film className="w-8 h-8 opacity-40 animate-pulse" />
+                        <p className="text-[10px] font-bold">Очередь пуста</p>
+                        <p className="text-[9px]">Добавьте ссылки на видео ниже, чтобы смотреть их по очереди.</p>
+                      </div>
+                    ) : (
+                      room.queue.map((item, idx) => {
+                        const canModifyQueue = isHost || room.settings?.queueMode === 'all';
+                        return (
+                          <div 
+                            key={item.id} 
+                            className="bg-bg-card border border-border-color rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-soft group/qitem"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-text-primary truncate">{item.title}</p>
+                              <p className="text-[8px] text-text-muted mt-0.5 truncate">Добавил: {item.addedBy}</p>
+                            </div>
+                            
+                            {canModifyQueue && (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => handlePlayQueueItem(item.id)}
+                                  className="p-1 rounded bg-accent-color/10 hover:bg-accent-color text-accent-color hover:text-white transition-all cursor-pointer"
+                                  title="Воспроизвести сейчас"
+                                >
+                                  <Play className="w-3 h-3 fill-current" />
+                                </button>
+                                <button
+                                  onClick={() => handleMoveQueueItem(item.id, 'up')}
+                                  disabled={idx === 0}
+                                  className={`p-1 rounded border border-border-color hover:bg-bg-app text-text-secondary transition-all ${idx === 0 ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                                  title="Вверх"
+                                >
+                                  <span className="text-[9px] font-bold">↑</span>
+                                </button>
+                                <button
+                                  onClick={() => handleMoveQueueItem(item.id, 'down')}
+                                  disabled={idx === (room.queue || []).length - 1}
+                                  className={`p-1 rounded border border-border-color hover:bg-bg-app text-text-secondary transition-all ${idx === (room.queue || []).length - 1 ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                                  title="Вниз"
+                                >
+                                  <span className="text-[9px] font-bold">↓</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteFromQueue(item.id)}
+                                  className="p-1 rounded bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-all cursor-pointer"
+                                  title="Удалить"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Add to queue form */}
+                  {(isHost || room?.settings?.queueMode === 'all') && (
+                    <form onSubmit={handleAddToQueue} className="p-3 bg-bg-card border-t border-border-color shrink-0 space-y-2">
+                      <div className="text-[9px] font-bold text-text-muted uppercase tracking-wider">Добавить видео в очередь</div>
+                      <input 
+                        type="text" 
+                        value={queueInputTitle}
+                        onChange={(e) => setQueueInputTitle(e.target.value)}
+                        placeholder="Название видео..."
+                        className="w-full ide-input text-[11px] py-1.5 rounded-lg"
+                      />
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={queueInputUrl}
+                          onChange={(e) => setQueueInputUrl(e.target.value)}
+                          placeholder="Ссылка на видео (YouTube, Direct...)"
+                          className="flex-1 ide-input text-[11px] py-1.5 rounded-lg"
+                          required
+                        />
+                        <button 
+                          type="submit"
+                          className="px-3 bg-accent-color hover:bg-accent-hover text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-soft active:scale-95 shrink-0"
+                        >
+                          Добавить
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
 
             </div>
           </div>
