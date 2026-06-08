@@ -74,6 +74,9 @@ html[data-theme='dark'] {
   --color-accent-hover: var(--accent-hover);
   --color-accent-light: var(--accent-light);
 
+  --color-purple-650: var(--accent-color);
+  --color-purple-600: var(--accent-hover);
+
   --shadow-soft: var(--shadow-soft);
   --shadow-hover: var(--shadow-hover);
 }
