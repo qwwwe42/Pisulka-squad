@@ -36,10 +36,11 @@ interface RoomData {
 }
 
 interface CoWatchRoomProps {
-  showId: string;
-  showTitle: string;
-  defaultVideoUrl: string;
-  onClose: () => void;
+  showId?: string;
+  showTitle?: string;
+  defaultVideoUrl?: string;
+  onClose?: () => void;
+  isInline?: boolean;
 }
 
 // Generate random 5-character digit code
@@ -51,7 +52,8 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   showId, 
   showTitle, 
   defaultVideoUrl, 
-  onClose 
+  onClose,
+  isInline = false
 }) => {
   const userId = getOrCreateUserId();
   
@@ -63,6 +65,7 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [videoUrlInput, setVideoUrlInput] = useState(defaultVideoUrl || '');
+  const [customShowTitle, setCustomShowTitle] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -117,12 +120,15 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       joinedAt: new Date().toISOString()
     };
 
+    const finalShowTitle = showTitle || customShowTitle.trim() || 'Произвольное видео';
+    const finalShowId = showId || 'custom';
+
     const newRoom: RoomData = {
       id: newCode,
       hostId: userId,
       hostName: nickname.trim(),
-      showId,
-      showTitle,
+      showId: finalShowId,
+      showTitle: finalShowTitle,
       videoUrl: cleanUrl,
       isPlaying: false,
       currentTime: 0,
@@ -406,12 +412,11 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   const isYoutube = room ? room.videoUrl.includes('youtube.com') || room.videoUrl.includes('youtu.be') : false;
   const youtubeId = room ? getYoutubeId(room.videoUrl) : '';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 md:p-6 animate-[fadeIn_0.2s_ease-out]">
-      <div className="w-full max-w-6xl h-[90vh] bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex flex-col md:flex-row shadow-soft relative">
+  const roomContent = (
+    <div className={`w-full bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex flex-col md:flex-row shadow-soft relative ${isInline ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' : 'w-full max-w-6xl h-[90vh]'}`}>
         
         {/* Close Room button (Outside joint watch) */}
-        {!isJoined && (
+        {!isJoined && onClose && (
           <button 
             onClick={onClose}
             className="absolute top-6 right-6 p-2 rounded-full bg-bg-app border border-border-color text-text-secondary hover:text-text-primary transition-all cursor-pointer z-10 shadow-soft"
@@ -467,11 +472,21 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
               {activeTab === 'create' ? (
                 <div className="space-y-4">
                   <div className="space-y-1.5 text-left">
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Название сериала</label>
-                    <div className="flex items-center gap-2 text-xs font-bold text-text-primary bg-bg-card border border-border-color rounded-xl px-3 py-2">
-                      <Film className="w-4 h-4 text-accent-color" />
-                      <span className="truncate">{showTitle}</span>
-                    </div>
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Название сериала / видео</label>
+                    {showTitle ? (
+                      <div className="flex items-center gap-2 text-xs font-bold text-text-primary bg-bg-card border border-border-color rounded-xl px-3 py-2">
+                        <Film className="w-4 h-4 text-accent-color" />
+                        <span className="truncate">{showTitle}</span>
+                      </div>
+                    ) : (
+                      <input 
+                        type="text"
+                        value={customShowTitle}
+                        onChange={(e) => setCustomShowTitle(e.target.value)}
+                        placeholder="Название видео..."
+                        className="w-full ide-input text-xs"
+                      />
+                    )}
                   </div>
 
                   <div className="space-y-1.5 text-left">
@@ -749,7 +764,16 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
           </div>
         )}
 
-      </div>
+    </div>
+  );
+
+  if (isInline) {
+    return roomContent;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 md:p-6 animate-[fadeIn_0.2s_ease-out]">
+      {roomContent}
     </div>
   );
 };

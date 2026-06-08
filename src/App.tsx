@@ -6,7 +6,8 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { AdminPanel } from './components/AdminPanel';
 import { MinecraftView } from './components/MinecraftView';
 import { GalleryView } from './components/GalleryView';
-import { Settings, Home, Menu, X, Tv, Gamepad2, Image, Sun, Moon } from 'lucide-react';
+import { CoWatchRoom } from './components/CoWatchRoom';
+import { Settings, Home, Menu, X, Tv, Gamepad2, Image, Sun, Moon, Users } from 'lucide-react';
 
 function AppContent() {
   const {
@@ -16,7 +17,7 @@ function AppContent() {
     setActiveEpisodeId
   } = useStreaming();
 
-  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'gallery' | 'minecraft' | 'admin'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'gallery' | 'minecraft' | 'cowatch' | 'admin'>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('penis_ink_admin') === 'true';
@@ -124,6 +125,22 @@ function AppContent() {
             >
               <Tv className="w-5 h-5" />
               <span>Сериалы</span>
+            </button>
+
+            {/* Совместный просмотр */}
+            <button
+              onClick={() => {
+                setActiveTab('cowatch');
+                handleBackToCatalog();
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'cowatch'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                }`}
+            >
+              <Users className="w-5 h-5" />
+              <span>Совместный просмотр</span>
             </button>
 
             {/* Майнкрафт */}
@@ -235,7 +252,7 @@ function AppContent() {
             <div className="flex items-center gap-2">
               {/* Show simple category/indicator */}
               <span className="text-[10px] font-bold uppercase tracking-wider text-accent-color bg-accent-light border border-accent-color/20 px-2.5 py-0.5 rounded-lg font-sans">
-                {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'gallery' ? 'Галерея' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
+                {activeTab === 'home' ? 'Главная' : activeTab === 'shows' ? 'Сериалы' : activeTab === 'cowatch' ? 'Совместный просмотр' : activeTab === 'gallery' ? 'Галерея' : activeTab === 'minecraft' ? 'Майнкрафт' : 'Админ'}
               </span>
             </div>
           </header>
@@ -267,6 +284,9 @@ function AppContent() {
                 onBack={handleBackToCatalog}
                 onSelectEpisode={(epId) => handleSelectEpisode(activeShowId, epId)}
               />
+            ) : activeTab === 'cowatch' ? (
+              // Render CoWatch Room
+              <CoWatchRoom isInline={true} />
             ) : activeTab === 'gallery' ? (
               // Render Gallery View
               <GalleryView />
