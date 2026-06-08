@@ -81,7 +81,7 @@ function AppContent() {
 
         {/* Brand Logo */}
         <div
-          className="flex items-center group cursor-pointer select-none max-w-[170px] h-12 overflow-hidden"
+          className="flex items-center group cursor-pointer select-none max-w-[220px] h-24 overflow-hidden"
           onClick={() => {
             setActiveTab('home');
             handleBackToCatalog();
@@ -241,7 +241,7 @@ function AppContent() {
               <Menu className="w-5 h-5" />
             </button>
             <div 
-              className="flex items-center h-8 cursor-pointer select-none"
+              className="flex items-center h-12 cursor-pointer select-none"
               onClick={() => {
                 setActiveTab('home');
                 handleBackToCatalog();
