@@ -458,7 +458,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           snapshot.forEach((docSnap) => {
             firestoreGallery.push({ id: docSnap.id, ...docSnap.data() } as GalleryItem);
           });
-          
+
           if (firestoreGallery.length === 0) {
             const demoItems: GalleryItem[] = [
               {
