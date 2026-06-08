@@ -1656,12 +1656,10 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   };
 
   const roomContent = (
-    <div className={`w-full bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex flex-col md:flex-row shadow-soft relative ${
-      isInline 
-        ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' 
-        : isJoined 
-          ? 'w-full max-w-6xl h-[90vh]' 
-          : 'w-full max-w-[420px] h-auto p-5 md:p-6 my-auto mx-auto'
+    <div className={`w-full bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex shadow-soft relative transition-all duration-300 ${
+      !isJoined 
+        ? 'max-w-[420px] h-auto flex-col p-5 md:p-6 mx-auto ' + (isInline ? 'mt-8 md:mt-16 mb-8' : 'my-auto')
+        : 'flex-col md:flex-row ' + (isInline ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' : 'max-w-6xl h-[90vh]')
     }`}>
         
         {/* Close Room button (Outside joint watch) */}
@@ -1678,7 +1676,7 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
             SCREEN A: JOIN OR CREATE SCREEN
             ================================================================== */}
         {!isJoined ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 w-full">
+          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3.5 w-full">
             <div className="w-12 h-12 rounded-2xl bg-accent-light border border-accent-color/30 flex items-center justify-center text-accent-color shadow-soft">
               <Users className="w-6 h-6" />
             </div>
@@ -1723,7 +1721,7 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
             </div>
 
             {/* TAB PANELS */}
-            <div className="w-full max-w-md bg-bg-app/50 border border-border-color rounded-2xl p-4 space-y-3.5 shadow-soft">
+            <div className="w-full max-w-md bg-bg-app/50 border border-border-color rounded-2xl p-4 space-y-3 shadow-soft">
               {activeTab === 'create' && (
                 <div className="space-y-3">
                   <div className="space-y-1 text-left">
