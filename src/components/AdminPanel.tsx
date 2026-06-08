@@ -4,9 +4,9 @@ import {
   Plus, Trash2, Database, AlertCircle, 
   Check, Info, Tv, CheckCircle2, Sparkles,
   Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock,
-  Cloud, CloudOff, X
+  Cloud, CloudOff, X, Smile, ArrowUp, ArrowDown
 } from 'lucide-react';
-import type { Show, MinecraftPlayer, NewsArticle, Episode } from '../types/streaming';
+import type { Show, MinecraftPlayer, NewsArticle, Episode, EmojiItem } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
 
 const generateId = (prefix: string) => `${prefix}-${Date.now()}`;
@@ -25,7 +25,8 @@ export const AdminPanel: React.FC = () => {
     shows, addShow, updateShow, deleteShow, 
     addEpisode, deleteEpisode, isFirebaseConnected,
     news, addNews, updateNews, deleteNews,
-    minecraftConfig, updateMinecraftConfig
+    minecraftConfig, updateMinecraftConfig,
+    reactionsConfig, updateReactionsConfig
   } = useStreaming();
 
   // Unique actors pool database aggregated from all shows
@@ -52,7 +53,7 @@ export const AdminPanel: React.FC = () => {
   }, [shows]);
 
   // Tabs
-  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft'>('shows');
+  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions'>('shows');
 
   // Notification message
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -156,6 +157,10 @@ export const AdminPanel: React.FC = () => {
   const [newsImage, setNewsImage] = useState('');
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
 
+  // Reactions Settings Form State
+  const [newEmojiChar, setNewEmojiChar] = useState('');
+  const [newEmojiLabel, setNewEmojiLabel] = useState('');
+
   // Minecraft Form State
   const [mcServerIp, setMcServerIp] = useState('');
   const [mcVersion, setMcVersion] = useState('');
@@ -241,6 +246,91 @@ export const AdminPanel: React.FC = () => {
     setNewsContent(item.content);
     setNewsTag(item.tag);
     setNewsImage(item.imageUrl || '');
+  };
+
+  const handleAddEmoji = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const char = newEmojiChar.trim();
+    const label = newEmojiLabel.trim();
+
+    if (!char || !label) {
+      showStatusMsg('Заполните все поля для эмодзи', 'error');
+      return;
+    }
+
+    const currentList = reactionsConfig?.emojiList || [];
+    if (currentList.some(item => item.emoji === char)) {
+      showStatusMsg('Этот эмодзи уже добавлен в список', 'error');
+      return;
+    }
+
+    const newId = 'emoji-' + Date.now();
+    const newItem: EmojiItem = {
+      id: newId,
+      emoji: char,
+      label: label,
+      enabled: true
+    };
+
+    try {
+      await updateReactionsConfig({
+        emojiList: [...currentList, newItem]
+      });
+      setNewEmojiChar('');
+      setNewEmojiLabel('');
+      showStatusMsg('Эмодзи успешно добавлен!');
+    } catch {
+      showStatusMsg('Ошибка при добавлении эмодзи', 'error');
+    }
+  };
+
+  const handleToggleEmojiEnabled = async (emojiId: string) => {
+    const currentList = reactionsConfig?.emojiList || [];
+    const updatedList = currentList.map(item => {
+      if (item.id === emojiId) {
+        return { ...item, enabled: !item.enabled };
+      }
+      return item;
+    });
+
+    try {
+      await updateReactionsConfig({ emojiList: updatedList });
+      showStatusMsg('Статус эмодзи обновлен');
+    } catch {
+      showStatusMsg('Ошибка при обновлении статуса', 'error');
+    }
+  };
+
+  const handleDeleteEmoji = async (emojiId: string) => {
+    if (!confirm('Вы уверены, что хотите удалить этот эмодзи из списка доступных? Реакции по нему у существующих новостей сохранятся, но новые пользователи не смогут его выбрать.')) {
+      return;
+    }
+    const currentList = reactionsConfig?.emojiList || [];
+    const updatedList = currentList.filter(item => item.id !== emojiId);
+
+    try {
+      await updateReactionsConfig({ emojiList: updatedList });
+      showStatusMsg('Эмодзи удален из списка');
+    } catch {
+      showStatusMsg('Ошибка при удалении эмодзи', 'error');
+    }
+  };
+
+  const handleMoveEmoji = async (index: number, direction: 'up' | 'down') => {
+    const currentList = [...(reactionsConfig?.emojiList || [])];
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === currentList.length - 1) return;
+
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const temp = currentList[index];
+    currentList[index] = currentList[targetIndex];
+    currentList[targetIndex] = temp;
+
+    try {
+      await updateReactionsConfig({ emojiList: currentList });
+    } catch {
+      showStatusMsg('Ошибка при изменении порядка', 'error');
+    }
   };
 
   // Trigger transient status message
@@ -574,6 +664,17 @@ export const AdminPanel: React.FC = () => {
             >
               <Gamepad2 className="w-4 h-4" />
               Настройки Майнкрафт
+            </button>
+            <button
+              onClick={() => {
+                setAdminTab('reactions');
+              }}
+              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors ${
+                adminTab === 'reactions' ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Smile className="w-4 h-4" />
+              Настройка реакций
             </button>
           </nav>
         </div>
@@ -2289,6 +2390,134 @@ export const AdminPanel: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* TAB 7: REACTIONS CONFIG */}
+        {adminTab === 'reactions' && (
+          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
+                Настройки реакций (эмодзи)
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                Управляйте набором эмодзи, доступных пользователям для реакций под новостями.
+              </p>
+            </div>
+
+            {/* Add New Emoji Form */}
+            <form onSubmit={handleAddEmoji} className="bg-slate-950/45 border border-slate-900 rounded-xl p-4 space-y-4 font-sans">
+              <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider font-sans">
+                Добавить новый эмодзи
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end font-sans">
+                <div className="space-y-1.5 font-sans">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Символ эмодзи *</label>
+                  <input
+                    type="text"
+                    value={newEmojiChar}
+                    onChange={(e) => setNewEmojiChar(e.target.value)}
+                    placeholder="Например: 🚀"
+                    className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                    maxLength={5}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5 font-sans">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ярлык / Описание *</label>
+                  <input
+                    type="text"
+                    value={newEmojiLabel}
+                    onChange={(e) => setNewEmojiLabel(e.target.value)}
+                    placeholder="Например: ракета"
+                    className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-4 py-2.5 bg-purple-650 hover:bg-purple-600 text-white rounded-lg text-xs font-semibold h-fit flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Добавить</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Emoji List */}
+            <div className="space-y-3 font-sans">
+              <h4 className="text-xs font-bold text-slate-350 uppercase tracking-wider font-sans">Текущий набор эмодзи</h4>
+              {(!reactionsConfig?.emojiList || reactionsConfig.emojiList.length === 0) ? (
+                <div className="p-8 text-center bg-slate-900/10 border border-dashed border-slate-800/80 rounded-2xl text-slate-500 text-xs font-sans">
+                  Список пуст. Добавьте первый эмодзи выше.
+                </div>
+              ) : (
+                <div className="bg-slate-950/50 rounded-xl border border-slate-850 overflow-hidden divide-y divide-slate-850 max-h-[500px] overflow-y-auto font-sans">
+                  {reactionsConfig.emojiList.map((item, index) => (
+                    <div key={item.id} className="p-3 flex items-center justify-between gap-4 text-xs font-sans">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{item.emoji}</span>
+                        <div>
+                          <span className="text-slate-200 font-bold">{item.label}</span>
+                          {!item.enabled && (
+                            <span className="text-[9px] px-1.5 py-0.2 ml-2 rounded bg-slate-800 border border-slate-700 text-slate-400 font-semibold font-mono">
+                              Отключен
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Move Up */}
+                        <button
+                          type="button"
+                          onClick={() => handleMoveEmoji(index, 'up')}
+                          disabled={index === 0}
+                          className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-450 hover:text-slate-200 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+                          title="Переместить вверх"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Move Down */}
+                        <button
+                          type="button"
+                          onClick={() => handleMoveEmoji(index, 'down')}
+                          disabled={index === reactionsConfig.emojiList.length - 1}
+                          className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-455 hover:text-slate-200 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+                          title="Переместить вниз"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Enable/Disable Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleEmojiEnabled(item.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border cursor-pointer transition-all ${
+                            item.enabled
+                              ? 'bg-emerald-950/25 border-emerald-900/40 text-emerald-400 hover:bg-emerald-900/30'
+                              : 'bg-amber-950/25 border-amber-900/40 text-amber-400 hover:bg-amber-900/30'
+                          }`}
+                        >
+                          {item.enabled ? 'Активен' : 'Отключен'}
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEmoji(item.id)}
+                          className="p-1 rounded bg-slate-900 border border-slate-850 text-slate-500 hover:text-rose-500 cursor-pointer transition-colors"
+                          title="Удалить эмодзи"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

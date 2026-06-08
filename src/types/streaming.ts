@@ -29,6 +29,17 @@ export interface Comment {
   replyToAuthor?: string; // Author nickname of the parent comment
 }
 
+export interface EmojiItem {
+  id: string;
+  emoji: string;
+  label: string;
+  enabled: boolean;
+}
+
+export interface ReactionsConfig {
+  emojiList: EmojiItem[];
+}
+
 export interface NewsArticle {
   id: string;
   title: string;
@@ -38,6 +49,7 @@ export interface NewsArticle {
   imageUrl?: string; // Optional image url/base64
   ratings?: Record<string, number>; // userId -> rating (1-5)
   comments?: Comment[]; // User comments list
+  reactions?: Record<string, string[]>; // emojiId -> array of userIds who reacted
 }
 
 export interface MinecraftRule {

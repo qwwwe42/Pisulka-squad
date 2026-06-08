@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useStreaming, getNewsAverageRating, getOrCreateUserId } from '../context/StreamingContext';
-import type { Comment } from '../types/streaming';
+import type { Comment, NewsArticle, ReactionsConfig, EmojiItem } from '../types/streaming';
 import { 
   Newspaper, Star, MessageSquare, Send, Calendar, 
   Award, X, CornerDownRight, Plus
@@ -99,8 +99,107 @@ const buildCommentTree = (comments: Comment[]): CommentNode[] => {
   return roots;
 };
 
+const EMOTICON_FALLBACKS: Record<string, string> = {
+  like: '👍',
+  heart: '❤️',
+  laugh: '😂',
+  cry: '😢',
+  poop: '💩',
+  vomit: '🤮',
+  fire: '🔥',
+  surprise: '😮'
+};
+
+const getEmojiSymbol = (id: string, configList: EmojiItem[]) => {
+  const found = configList.find(e => e.id === id);
+  if (found) return found.emoji;
+  return EMOTICON_FALLBACKS[id] || id;
+};
+
+const getEmojiLabel = (id: string, configList: EmojiItem[]) => {
+  const found = configList.find(e => e.id === id);
+  if (found) return found.label;
+  return id;
+};
+
+const NewsReactions: React.FC<{
+  article: NewsArticle;
+  currentUserId: string;
+  reactionsConfig: ReactionsConfig;
+  toggleNewsReaction: (newsId: string, emojiId: string) => Promise<void>;
+}> = ({ article, currentUserId, reactionsConfig, toggleNewsReaction }) => {
+  const [particles, setParticles] = useState<{ id: number, emoji: string, clientX: number, clientY: number }[]>([]);
+
+  const handleReactionClick = (e: React.MouseEvent, emojiId: string, emojiSymbol: string) => {
+    e.stopPropagation();
+    toggleNewsReaction(article.id, emojiId);
+
+    const newParticle = { id: Date.now() + Math.random(), emoji: emojiSymbol, clientX: e.clientX, clientY: e.clientY };
+    setParticles(prev => [...prev, newParticle]);
+    setTimeout(() => {
+      setParticles(prev => prev.filter(p => p.id !== newParticle.id));
+    }, 800);
+  };
+
+  const enabledEmojis = (reactionsConfig?.emojiList || []).filter(e => e.enabled);
+  const articleReactions = article.reactions || {};
+
+  const disabledWithReactions = Object.keys(articleReactions).filter(id => {
+    const count = (articleReactions[id] || []).length;
+    const isEnabled = enabledEmojis.some(e => e.id === id);
+    return count > 0 && !isEnabled;
+  });
+
+  const displayList = [
+    ...enabledEmojis,
+    ...disabledWithReactions.map(id => ({
+      id,
+      emoji: getEmojiSymbol(id, reactionsConfig?.emojiList || []),
+      label: getEmojiLabel(id, reactionsConfig?.emojiList || []),
+      enabled: false
+    }))
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-1.5 items-center select-none pt-2 relative">
+      {displayList.map(item => {
+        const userList = articleReactions[item.id] || [];
+        const count = userList.length;
+        const hasReacted = userList.includes(currentUserId);
+
+        return (
+          <button
+            key={item.id}
+            onClick={(e) => handleReactionClick(e, item.id, item.emoji)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[10px] font-bold transition-all hover:scale-[1.03] active:scale-95 cursor-pointer font-sans ${
+              hasReacted
+                ? 'bg-accent-light border-accent-color/30 text-accent-color shadow-sm'
+                : 'bg-bg-app border-border-color/60 text-text-secondary hover:text-text-primary hover:border-border-color'
+            }`}
+            title={item.label}
+          >
+            <span className="text-xs">{item.emoji}</span>
+            {count > 0 && <span className="text-[9px] font-mono leading-none">{count}</span>}
+          </button>
+        );
+      })}
+
+      {/* Render flying emojis */}
+      {particles.map(p => (
+        <span
+          key={p.id}
+          className="fixed text-2xl pointer-events-none z-[100] animate-float-up"
+          style={{ left: p.clientX - 12, top: p.clientY - 24 }}
+        >
+          {p.emoji}
+        </span>
+      ))}
+    </div>
+  );
+};
+
 export const NewsView: React.FC = () => {
-  const { news, rateNews, addNewsComment, addNews } = useStreaming();
+  const { news, rateNews, addNewsComment, addNews, reactionsConfig, toggleNewsReaction } = useStreaming();
   
   // Track selected news article for full view
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
@@ -547,6 +646,14 @@ export const NewsView: React.FC = () => {
                       <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-3 font-sans break-words">
                         {item.content}
                       </p>
+
+                      {/* Reactions Panel */}
+                      <NewsReactions
+                        article={item}
+                        currentUserId={currentUserId}
+                        reactionsConfig={reactionsConfig}
+                        toggleNewsReaction={toggleNewsReaction}
+                      />
                     </div>
 
                     {/* Footer Action */}
@@ -645,6 +752,17 @@ export const NewsView: React.FC = () => {
                   <p className="text-xs md:text-sm text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
                     {selectedArticle.content}
                   </p>
+
+                  {/* Reactions Panel */}
+                  <div className="pt-2">
+                    <h4 className="text-xs font-bold text-text-primary mb-2 font-mono uppercase tracking-wider">Реакции</h4>
+                    <NewsReactions
+                      article={selectedArticle}
+                      currentUserId={currentUserId}
+                      reactionsConfig={reactionsConfig}
+                      toggleNewsReaction={toggleNewsReaction}
+                    />
+                  </div>
 
                   {/* Rating block */}
                   <div className="bg-bg-app border border-border-color/70 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm select-none">

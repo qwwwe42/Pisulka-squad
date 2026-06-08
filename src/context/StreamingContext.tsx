@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem } from '../types/streaming';
+import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem, EmojiItem, ReactionsConfig } from '../types/streaming';
 
 interface StreamingContextType {
   shows: Show[];
@@ -26,6 +26,9 @@ interface StreamingContextType {
   deleteNews: (newsId: string) => Promise<void>;
   rateNews: (newsId: string, rating: number) => Promise<void>;
   addNewsComment: (newsId: string, author: string, text: string, parentId?: string, replyToAuthor?: string) => Promise<void>;
+  reactionsConfig: ReactionsConfig;
+  updateReactionsConfig: (config: ReactionsConfig) => Promise<void>;
+  toggleNewsReaction: (newsId: string, emojiId: string) => Promise<void>;
   minecraftConfig: MinecraftConfig;
   updateMinecraftConfig: (config: MinecraftConfig) => Promise<void>;
   gallery: GalleryItem[];
@@ -140,6 +143,17 @@ export const DEMO_NEWS: NewsArticle[] = [
     date: new Date('2026-06-07T10:00:00.000Z').toISOString(),
     tag: 'ИГРОВОЙ СЕРВЕР'
   }
+];
+
+export const DEFAULT_EMOJI_LIST: EmojiItem[] = [
+  { id: 'like', emoji: '👍', label: 'лайк', enabled: true },
+  { id: 'heart', emoji: '❤️', label: 'сердечко', enabled: true },
+  { id: 'laugh', emoji: '😂', label: 'смех', enabled: true },
+  { id: 'cry', emoji: '😢', label: 'слёзы', enabled: true },
+  { id: 'poop', emoji: '💩', label: 'какашка', enabled: true },
+  { id: 'vomit', emoji: '🤮', label: 'рвота', enabled: true },
+  { id: 'fire', emoji: '🔥', label: 'огонь', enabled: true },
+  { id: 'surprise', emoji: '😮', label: 'удивление', enabled: true },
 ];
 
 export const DEFAULT_MINECRAFT_CONFIG: MinecraftConfig = {
@@ -269,6 +283,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
+    }
+  });
+  const [reactionsConfig, setReactionsConfig] = useState<ReactionsConfig>(() => {
+    try {
+      const cached = localStorage.getItem('penis_ink_reactions_config');
+      return cached ? JSON.parse(cached) : { emojiList: DEFAULT_EMOJI_LIST };
+    } catch {
+      return { emojiList: DEFAULT_EMOJI_LIST };
     }
   });
   const [minecraftConfig, setMinecraftConfig] = useState<MinecraftConfig>(() => {
@@ -452,6 +474,22 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           console.warn('Firestore minecraft config onSnapshot error:', error);
         });
 
+        // Start real-time listener for reactions settings
+        const unsubReactions = onSnapshot(doc(db, 'settings', 'reactions'), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as ReactionsConfig;
+            setReactionsConfig(data);
+            localStorage.setItem('penis_ink_reactions_config', JSON.stringify(data));
+          } else {
+            const defaultConfig = { emojiList: DEFAULT_EMOJI_LIST };
+            setDoc(doc(db, 'settings', 'reactions'), defaultConfig).catch(console.error);
+            setReactionsConfig(defaultConfig);
+            localStorage.setItem('penis_ink_reactions_config', JSON.stringify(defaultConfig));
+          }
+        }, (error) => {
+          console.warn('Firestore reactions config onSnapshot error:', error);
+        });
+
         // Start real-time listener for gallery
         const unsubGallery = onSnapshot(collection(db, 'gallery'), (snapshot) => {
           const firestoreGallery: GalleryItem[] = [];
@@ -495,6 +533,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           unsubNews();
           unsubMinecraft();
           unsubGallery();
+          unsubReactions();
         };
       } catch (err) {
         console.warn('Firebase connection failed, using localStorage:', err);
@@ -512,6 +551,11 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (!cachedMc) {
           setMinecraftConfig(DEFAULT_MINECRAFT_CONFIG);
           localStorage.setItem('penis_ink_minecraft_config', JSON.stringify(DEFAULT_MINECRAFT_CONFIG));
+        }
+        const cachedReactions = localStorage.getItem('penis_ink_reactions_config');
+        if (!cachedReactions) {
+          setReactionsConfig({ emojiList: DEFAULT_EMOJI_LIST });
+          localStorage.setItem('penis_ink_reactions_config', JSON.stringify({ emojiList: DEFAULT_EMOJI_LIST }));
         }
         const cachedGallery = localStorage.getItem('penis_ink_gallery');
         if (!cachedGallery || JSON.parse(cachedGallery).length === 0) {
@@ -938,6 +982,60 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const updateReactionsConfig = async (newConfig: ReactionsConfig) => {
+    setReactionsConfig(newConfig);
+    localStorage.setItem('penis_ink_reactions_config', JSON.stringify(newConfig));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        await setDoc(doc(db, 'settings', 'reactions'), newConfig);
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
+  const toggleNewsReaction = async (newsId: string, emojiId: string) => {
+    const userId = getOrCreateUserId();
+    const updatedNews = news.map((item) => {
+      if (item.id === newsId) {
+        const reactions = { ...(item.reactions || {}) };
+        const userList = [...(reactions[emojiId] || [])];
+        const index = userList.indexOf(userId);
+
+        if (index > -1) {
+          userList.splice(index, 1);
+        } else {
+          userList.push(userId);
+        }
+
+        if (userList.length === 0) {
+          delete reactions[emojiId];
+        } else {
+          reactions[emojiId] = userList;
+        }
+
+        return { ...item, reactions };
+      }
+      return item;
+    });
+
+    const sortedNews = sortNewsItems(updatedNews);
+    setNews(sortedNews);
+    localStorage.setItem('penis_ink_news', JSON.stringify(sortedNews));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        const targetNews = sortedNews.find(item => item.id === newsId);
+        if (targetNews) {
+          await setDoc(doc(db, 'news', newsId), targetNews);
+        }
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
   const loadDemoData = () => {
     const merged = [...shows];
     for (const demo of DEMO_SHOWS) {
@@ -1007,6 +1105,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           await deleteDoc(doc(db, 'gallery', item.id));
         }
         await deleteDoc(doc(db, 'settings', 'minecraft'));
+        await deleteDoc(doc(db, 'settings', 'reactions'));
       } catch (e) {
         console.error('Firestore clear failed:', e);
       }
@@ -1021,6 +1120,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     localStorage.removeItem(LS_SYNCED_KEY);
     localStorage.removeItem('penis_ink_news');
     localStorage.removeItem('penis_ink_minecraft_config');
+    localStorage.removeItem('penis_ink_reactions_config');
     localStorage.removeItem('penis_ink_gallery');
     setActiveShowId(null);
     setActiveEpisodeId(null);
@@ -1051,6 +1151,9 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       addNewsComment,
       minecraftConfig,
       updateMinecraftConfig,
+      reactionsConfig,
+      updateReactionsConfig,
+      toggleNewsReaction,
       gallery,
       addGalleryItem,
       deleteGalleryItem,
