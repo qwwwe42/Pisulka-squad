@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { 
-  Plus, Trash2, Database, AlertCircle, RefreshCw, 
+  Plus, Trash2, Database, AlertCircle, 
   Check, Info, Tv, CheckCircle2, Sparkles,
   Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock,
   Cloud, CloudOff
@@ -23,8 +23,7 @@ const DEFAULT_PLAYERS: MinecraftPlayer[] = [
 export const AdminPanel: React.FC = () => {
   const { 
     shows, addShow, updateShow, deleteShow, 
-    addEpisode, deleteEpisode, loadDemoData, 
-    clearAllData, isFirebaseConnected,
+    addEpisode, deleteEpisode, isFirebaseConnected,
     news, addNews, updateNews, deleteNews,
     minecraftConfig, updateMinecraftConfig
   } = useStreaming();
@@ -1806,58 +1805,6 @@ export const AdminPanel: React.FC = () => {
             <div>
               <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">Инструменты базы данных</h3>
               <p className="text-xs text-slate-500">Управляйте глобальным состоянием хранилища.</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Load mock */}
-              <div className="p-4 bg-slate-950/40 rounded-2xl border border-slate-800 space-y-3 flex flex-col justify-between">
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                    <RefreshCw className="w-4 h-4 text-purple-400" />
-                    <span>Восстановить демонстрационные данные</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-550 leading-normal">
-                    Загрузит 2 премиальных демо-сериала с предопределенным списком серий и работающими тестовыми видеофайлами.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm('Сбросить данные к демонстрационным?')) {
-                      loadDemoData();
-                      showStatusMsg('Демо-данные успешно загружены!');
-                    }
-                  }}
-                  className="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-350 hover:text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-                >
-                  Загрузить демо
-                </button>
-              </div>
-
-              {/* Purge db */}
-              <div className="p-4 bg-slate-950/40 rounded-2xl border border-slate-800 space-y-3 flex flex-col justify-between">
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold text-rose-400 flex items-center gap-1.5 font-sans">
-                    <Trash2 className="w-4 h-4" />
-                    <span>Стереть все данные</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-550 leading-normal">
-                    Полностью удаляет все сериалы, серии и историю просмотров из базы данных Firestore или локального хранилища.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm('Вы уверены, что хотите полностью стереть базу данных? Это действие необратимо.')) {
-                      clearAllData();
-                      showStatusMsg('База данных полностью очищена');
-                    }
-                  }}
-                  className="w-full py-2 bg-rose-950/15 hover:bg-rose-950/30 border border-rose-900/40 text-rose-450 hover:text-rose-300 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-                >
-                  Очистить базу данных
-                </button>
-              </div>
             </div>
 
             {/* List of current shows to delete */}
