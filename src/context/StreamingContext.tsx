@@ -9,8 +9,10 @@ interface StreamingContextType {
   watchProgress: Record<string, WatchProgress>;
   activeShowId: string | null;
   activeEpisodeId: string | null;
+  activeNewsId: string | null;
   setActiveShowId: (id: string | null) => void;
   setActiveEpisodeId: (id: string | null) => void;
+  setActiveNewsId: (id: string | null) => void;
   addShow: (show: Omit<Show, 'id' | 'episodes'>) => Promise<string>;
   updateShow: (showId: string, show: Partial<Show>) => Promise<void>;
   deleteShow: (showId: string) => Promise<void>;
@@ -312,6 +314,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
   const [activeShowId, setActiveShowId] = useState<string | null>(null);
   const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
+  const [activeNewsId, setActiveNewsId] = useState<string | null>(null);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
 
   // Refs for managing the onSnapshot subscription
@@ -1132,8 +1135,10 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       watchProgress,
       activeShowId,
       activeEpisodeId,
+      activeNewsId,
       setActiveShowId,
       setActiveEpisodeId,
+      setActiveNewsId,
       addShow,
       updateShow,
       deleteShow,

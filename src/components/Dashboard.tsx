@@ -7,6 +7,7 @@ import { ImageUploader } from './ImageUploader';
 interface DashboardProps {
   onSelectShow: (showId: string) => void;
   onSelectEpisode: (showId: string, episodeId: string) => void;
+  onSelectNews?: (newsId: string) => void;
   mode?: 'home' | 'catalog';
 }
 
@@ -46,7 +47,7 @@ function triggerCelebration() {
   }, 10000);
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, mode = 'home' }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, onSelectNews, mode = 'home' }) => {
   const { shows, watchProgress, loadDemoData, news, addNews } = useStreaming();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -361,7 +362,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
           {news && news.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {news.slice(0, 4).map((item) => (
-                <div key={item.id} className="p-5 bg-bg-card border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans">
+                <div 
+                  key={item.id} 
+                  onClick={() => onSelectNews?.(item.id)}
+                  className="p-5 bg-bg-card border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans cursor-pointer group"
+                >
                   <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
                   <h4 className="text-xs font-bold text-text-primary">{item.title}</h4>
                   {item.imageUrl && (

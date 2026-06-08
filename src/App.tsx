@@ -15,7 +15,8 @@ function AppContent() {
     activeShowId,
     activeEpisodeId,
     setActiveShowId,
-    setActiveEpisodeId
+    setActiveEpisodeId,
+    setActiveNewsId
   } = useStreaming();
 
   const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'news' | 'cowatch' | 'gallery' | 'minecraft' | 'admin'>('home');
@@ -322,9 +323,15 @@ function AppContent() {
               />
             ) : (
               // Render Home Dashboard
+              // Render Home Dashboard
               <Dashboard
                 onSelectShow={handleSelectShow}
                 onSelectEpisode={handleSelectEpisode}
+                onSelectNews={(newsId) => {
+                  setActiveNewsId(newsId);
+                  setActiveTab('news');
+                  handleBackToCatalog();
+                }}
                 mode="home"
               />
             )}

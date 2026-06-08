@@ -199,10 +199,7 @@ const NewsReactions: React.FC<{
 };
 
 export const NewsView: React.FC = () => {
-  const { news, rateNews, addNewsComment, addNews, reactionsConfig, toggleNewsReaction } = useStreaming();
-  
-  // Track selected news article for full view
-  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
+  const { news, rateNews, addNewsComment, addNews, reactionsConfig, toggleNewsReaction, activeNewsId, setActiveNewsId } = useStreaming();
 
   // Comments form local states
   const [nickname, setNickname] = useState(() => {
@@ -359,7 +356,7 @@ export const NewsView: React.FC = () => {
             
             <button
               type="button"
-              onClick={() => handleReplyClick(comment, selectedNewsId || '')}
+              onClick={() => handleReplyClick(comment, activeNewsId || '')}
               className="text-[9px] font-bold text-accent-color hover:underline cursor-pointer pt-1 flex items-center gap-0.5"
             >
               Ответить
@@ -379,29 +376,29 @@ export const NewsView: React.FC = () => {
 
   // ── Body scroll lock when overlay is open ───────────────────────────────
   useEffect(() => {
-    if (!selectedNewsId) return;
+    if (!activeNewsId) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
-  }, [selectedNewsId]);
+  }, [activeNewsId]);
 
   // ── Esc key closes the overlay ────────────────────────────────────────────
   const closeOverlay = useCallback(() => {
-    setSelectedNewsId(null);
+    setActiveNewsId(null);
     setCommentError('');
     setCommentText('');
     setReplyTo(null);
   }, []);
 
   useEffect(() => {
-    if (!selectedNewsId) return;
+    if (!activeNewsId) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeOverlay(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedNewsId, closeOverlay]);
+  }, [activeNewsId, closeOverlay]);
 
   // ── Compute article data for the overlay ─────────────────────────────────
-  const selectedArticle = selectedNewsId ? news.find(n => n.id === selectedNewsId) ?? null : null;
+  const selectedArticle = activeNewsId ? news.find(n => n.id === activeNewsId) ?? null : null;
   const articleRating = selectedArticle ? getNewsAverageRating(selectedArticle.ratings) : { average: '0.0', count: 0 };
   const userRating = selectedArticle ? (selectedArticle.ratings?.[currentUserId] || 0) : 0;
   const commentTree = selectedArticle ? buildCommentTree(selectedArticle.comments || []) : [];
@@ -589,7 +586,7 @@ export const NewsView: React.FC = () => {
               return (
                 <div 
                   key={item.id} 
-                  onClick={() => setSelectedNewsId(item.id)}
+                  onClick={() => setActiveNewsId(item.id)}
                   className="bg-bg-card border border-border-color rounded-[24px] overflow-hidden flex flex-col transition-all duration-300 hover:border-accent-color/30 hover:scale-[1.01] hover:shadow-hover cursor-pointer group shadow-soft"
                 >
                   {/* Card Image */}
@@ -668,7 +665,7 @@ export const NewsView: React.FC = () => {
           Rendered on top of everything when a card is clicked.
           z-50 covers sidebar, header, and the main scroll container.
       ══════════════════════════════════════════════════════════════ */}
-      {selectedNewsId && (
+      {activeNewsId && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
