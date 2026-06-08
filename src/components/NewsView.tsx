@@ -647,13 +647,7 @@ export const NewsView: React.FC = () => {
                         {item.content}
                       </p>
 
-                      {/* Reactions Panel */}
-                      <NewsReactions
-                        article={item}
-                        currentUserId={currentUserId}
-                        reactionsConfig={reactionsConfig}
-                        toggleNewsReaction={toggleNewsReaction}
-                      />
+
                     </div>
 
                     {/* Footer Action */}
