@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { ShowCard } from './ShowCard';
-import { Play, Search, Clock, Calendar } from 'lucide-react';
+import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2 } from 'lucide-react';
 
 interface DashboardProps {
   onSelectShow: (showId: string) => void;
@@ -46,9 +46,17 @@ function triggerCelebration() {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, mode = 'home' }) => {
-  const { shows, watchProgress, loadDemoData, news } = useStreaming();
+  const { shows, watchProgress, loadDemoData, news, addNews } = useStreaming();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  
+  // Public News Modal State
+  const [showAddNewsModal, setShowAddNewsModal] = useState(false);
+  const [newsTitle, setNewsTitle] = useState('');
+  const [newsTag, setNewsTag] = useState('');
+  const [newsContent, setNewsContent] = useState('');
+  const [isSubmittingNews, setIsSubmittingNews] = useState(false);
+  const [newsSuccess, setNewsSuccess] = useState(false);
   
   const visibleShows = shows.filter(s => !s.isHidden);
   const ongoingWithCountdown = visibleShows.find(s => s.status === 'ongoing' && s.nextEpisodeRelease);
@@ -326,24 +334,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
       )}
 
       {/* 2.5 WELCOME CARD (LATEST NEWS) */}
-      {mode === 'home' && news && news.length > 0 && (
-        <div className="space-y-4 bg-bg-card border border-border-color rounded-[32px] p-6 md:p-8 shadow-soft">
+      {mode === 'home' && (
+        <div className="space-y-4 bg-bg-card border border-border-color rounded-[32px] p-6 md:p-8 shadow-soft relative overflow-hidden">
           <div className="border-b border-border-color pb-3 flex items-center justify-between">
             <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest font-mono">
               Новости Сообщества
             </h3>
+            <button
+              onClick={() => {
+                setShowAddNewsModal(true);
+                setNewsTitle('');
+                setNewsTag('');
+                setNewsContent('');
+                setNewsSuccess(false);
+              }}
+              className="px-3.5 py-1.5 bg-accent-color hover:bg-accent-hover text-white rounded-xl text-[10px] font-bold shadow-soft transition-all cursor-pointer flex items-center gap-1 active:scale-95 duration-200"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Опубликовать новость</span>
+            </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {news.slice(0, 4).map((item) => (
-              <div key={item.id} className="p-5 bg-bg-app border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans">
-                <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
-                <h4 className="text-xs font-bold text-text-primary">{item.title}</h4>
-                <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
-                  {item.content}
-                </p>
-              </div>
-            ))}
-          </div>
+
+          {news && news.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {news.slice(0, 4).map((item) => (
+                <div key={item.id} className="p-5 bg-bg-app border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans">
+                  <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
+                  <h4 className="text-xs font-bold text-text-primary">{item.title}</h4>
+                  <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
+                    {item.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 rounded-2xl border border-dashed border-border-color bg-bg-app text-text-muted text-xs font-semibold">
+              <p className="mb-2">Новостей пока нет.</p>
+              <button
+                onClick={() => {
+                  setShowAddNewsModal(true);
+                  setNewsTitle('');
+                  setNewsTag('');
+                  setNewsContent('');
+                  setNewsSuccess(false);
+                }}
+                className="px-4 py-2 bg-accent-light hover:bg-accent-color hover:text-white border border-accent-color/20 text-accent-color rounded-xl text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Опубликовать новость</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -411,6 +452,134 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
         </div>
       )}
 
+      {/* 2.6 PUBLIC NEWS PUBLISHING MODAL */}
+      {showAddNewsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
+          <div className="w-full max-w-md bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 animate-[scaleIn_0.2s_ease-out] relative">
+            
+            {newsSuccess ? (
+              <div className="flex flex-col items-center text-center py-6 space-y-4 animate-[fadeIn_0.2s_ease-out]">
+                <div className="relative">
+                  <div className="absolute inset-0 w-16 h-16 rounded-full bg-green-500/20 animate-ping" />
+                  <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/35">
+                    <CheckCircle2 className="w-9 h-9 text-white" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-extrabold text-text-primary uppercase tracking-wider">Новость опубликована!</h4>
+                  <p className="text-[11px] text-text-secondary">Ваша новость успешно размещена в Ленте Сообщества.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between pb-4 border-b border-border-color">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-accent-color" />
+                    <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">
+                      Опубликовать новость
+                    </h3>
+                  </div>
+                  <button 
+                    onClick={() => setShowAddNewsModal(false)}
+                    className="p-1.5 rounded-lg bg-bg-app hover:bg-border-color text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!newsTitle.trim() || !newsContent.trim()) {
+                      alert('Пожалуйста, заполните заголовок и содержание.');
+                      return;
+                    }
+                    setIsSubmittingNews(true);
+                    try {
+                      await addNews({
+                        title: newsTitle.trim(),
+                        content: newsContent.trim(),
+                        tag: newsTag.trim() || 'НОВОСТЬ',
+                        date: new Date().toISOString()
+                      });
+                      setNewsSuccess(true);
+                      setTimeout(() => {
+                        setShowAddNewsModal(false);
+                      }, 1800);
+                    } catch (err) {
+                      console.error(err);
+                      alert('Не удалось опубликовать новость.');
+                    } finally {
+                      setIsSubmittingNews(false);
+                    }
+                  }}
+                  className="space-y-4 pt-4"
+                >
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                      Заголовок новости *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Например: Собрание в 20:00!"
+                      value={newsTitle}
+                      onChange={(e) => setNewsTitle(e.target.value)}
+                      className="w-full ide-input"
+                      maxLength={80}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                      Тег / Категория (макс. 18 симв.)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Например: ИВЕНТ"
+                      value={newsTag}
+                      onChange={(e) => setNewsTag(e.target.value)}
+                      className="w-full ide-input font-bold"
+                      maxLength={18}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                      Содержание новости *
+                    </label>
+                    <textarea
+                      placeholder="Напишите текст новости для сообщества..."
+                      value={newsContent}
+                      onChange={(e) => setNewsContent(e.target.value)}
+                      className="w-full ide-input min-h-24 resize-none py-2.5 leading-relaxed"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex gap-2.5 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddNewsModal(false)}
+                      className="flex-1 py-2.5 rounded-xl border border-border-color hover:bg-bg-app text-text-secondary hover:text-text-primary text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingNews}
+                      className="flex-1 py-2.5 bg-accent-color hover:bg-accent-hover disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-soft transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {isSubmittingNews ? 'Публикация...' : 'Опубликовать'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Confetti Animation Style Keyframes Injector */}
       <style>{`
         .confetti-particle {
@@ -423,6 +592,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
           100% {
             transform: translateY(105vh) rotate(720deg);
           }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

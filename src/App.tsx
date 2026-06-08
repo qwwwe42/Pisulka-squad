@@ -90,7 +90,7 @@ function AppContent() {
               setIsMobileMenuOpen(false);
             }}
           >
-            <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02] theme-logo" />
+            <img src="/logo.png" alt="Varicose Squad Logo" className="h-full w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02] theme-logo" />
           </div>
 
           {/* Navigation Menu */}
@@ -245,7 +245,7 @@ function AppContent() {
                   handleBackToCatalog();
                 }}
               >
-                <img src="/logo.png" alt="Pisulka Squad Logo" className="h-full w-auto object-contain theme-logo" />
+                <img src="/logo.png" alt="Varicose Squad Logo" className="h-full w-auto object-contain theme-logo" />
               </div>
             </div>
 
@@ -314,7 +314,7 @@ function AppContent() {
 
       {/* Footer */}
       <footer className="h-12 border-t border-border-color px-6 md:px-10 flex items-center justify-between text-[10px] text-text-muted shrink-0 font-sans mt-auto transition-colors duration-200">
-        <span>&copy; {new Date().getFullYear()} pisulka-squad. Все права сохранены.</span>
+        <span>&copy; {new Date().getFullYear()} varicose-squad. Все права сохранены.</span>
         <span className="font-mono text-accent-color/85">v1.1.0 (Google Drive Streamer)</span>
       </footer>
 

@@ -146,7 +146,7 @@ export const MinecraftView: React.FC = () => {
             <span>Сервер Онлайн</span>
           </span>
           <h1 className="text-2xl md:text-4xl font-extrabold text-text-primary tracking-tight">
-            Minecraft Сервер <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent-color to-accent-hover">Pisulka Squad</span>
+            Minecraft Сервер <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent-color to-accent-hover">Varicose Squad</span>
           </h1>
           {isEditingMode ? (
             <textarea

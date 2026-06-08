@@ -1982,7 +1982,7 @@ export const AdminPanel: React.FC = () => {
                     type="text" 
                     value={mcServerIp} 
                     onChange={(e) => setMcServerIp(e.target.value)} 
-                    placeholder="Например: mc.pisulka-squad.ru" 
+                    placeholder="Например: mc.varicose-squad.ru" 
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-purple-500/50 font-bold" 
                     required 
                   />
