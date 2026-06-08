@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { Episode, Actor } from '../types/streaming';
 import { ActorModal } from './ActorModal';
+import { CoWatchRoom } from './CoWatchRoom';
 import { getGoogleDriveEmbedUrl } from '../utils/drive';
 
 const getTrailerEmbedUrl = (url: string) => {
@@ -84,6 +85,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
   const [nextReleaseTimeLeft, setNextReleaseTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [selectedActor, setSelectedActor] = useState<Actor | null>(null);
   const [showTrailerModal, setShowTrailerModal] = useState(false);
+  const [showCoWatchModal, setShowCoWatchModal] = useState(false);
 
   const [nickname, setNickname] = useState(() => {
     return localStorage.getItem('penis_ink_nickname') || '';
@@ -281,15 +283,25 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
                <h1 className="text-xl md:text-3xl font-extrabold text-text-primary">{show.title}</h1>
               <p className="text-xs md:text-sm text-text-secondary leading-relaxed max-w-3xl">{show.description}</p>
 
-              {show.trailerUrl && (
+              <div className="flex flex-wrap items-center gap-3">
+                {show.trailerUrl && (
+                  <button
+                    onClick={() => setShowTrailerModal(true)}
+                    className="flex items-center gap-2 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-soft w-fit hover:scale-[1.01]"
+                  >
+                    <Play className="w-4 h-4 fill-current" />
+                    <span>Смотреть трейлер</span>
+                  </button>
+                )}
+
                 <button
-                  onClick={() => setShowTrailerModal(true)}
-                  className="flex items-center gap-2 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-soft w-fit hover:scale-[1.01]"
+                  onClick={() => setShowCoWatchModal(true)}
+                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-soft w-fit hover:scale-[1.01]"
                 >
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>Смотреть трейлер</span>
+                  <Users className="w-4 h-4" />
+                  <span>Совместный просмотр</span>
                 </button>
-              )}
+              </div>
 
               {/* Sub countdown block inside detail info */}
               {nextReleaseTimeLeft && (
@@ -617,6 +629,15 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
 
       {selectedActor && (
         <ActorModal actor={selectedActor} onClose={() => setSelectedActor(null)} />
+      )}
+
+      {showCoWatchModal && (
+        <CoWatchRoom
+          showId={show.id}
+          showTitle={show.title}
+          defaultVideoUrl={show.episodes?.[0]?.driveUrl || ''}
+          onClose={() => setShowCoWatchModal(false)}
+        />
       )}
 
       {showTrailerModal && show.trailerUrl && (
