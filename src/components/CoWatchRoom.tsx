@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import { 
+  doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, serverTimestamp,
+  collection, query, where
+} from 'firebase/firestore';
 import { 
   X, Send, Users, MessageSquare, Play, Pause, 
   Volume2, VolumeX, LogOut, Copy, Check, Info, Film, Maximize2, Settings
@@ -46,6 +49,8 @@ interface RoomData {
   settings?: {
     queueMode: 'host' | 'all';
   };
+  visibility?: 'public' | 'private';
+  hasPassword?: boolean;
 }
 
 interface CoWatchRoomProps {
@@ -223,6 +228,13 @@ const loadHls = (): Promise<any> => {
   });
 };
 
+const hashPassword = async (password: string): Promise<string> => {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 // Generate random 5-character digit code
 const generateRoomCode = () => {
   return Math.floor(10000 + Math.random() * 90000).toString();
@@ -242,7 +254,7 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
     return localStorage.getItem('penis_ink_nickname') || '';
   });
   const [isJoined, setIsJoined] = useState(false);
-  const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'join' | 'public'>('create');
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [videoUrlInput, setVideoUrlInput] = useState(defaultVideoUrl || '');
   const [customShowTitle, setCustomShowTitle] = useState('');
@@ -279,6 +291,21 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   const [sideTab, setSideTab] = useState<'chat' | 'queue'>('chat');
   const [queueInputUrl, setQueueInputUrl] = useState('');
   const [queueInputTitle, setQueueInputTitle] = useState('');
+
+  // Creation visibility and password settings
+  const [createVisibility, setCreateVisibility] = useState<'public' | 'private'>('public');
+  const [requirePassword, setRequirePassword] = useState(false);
+  const [createPassword, setCreatePassword] = useState('');
+
+  // Public rooms list
+  const [publicRooms, setPublicRooms] = useState<RoomData[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+
+  // Password verification modal settings
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [targetRoomCode, setTargetRoomCode] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -356,6 +383,8 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       settings: {
         queueMode: 'host'
       },
+      visibility: createVisibility,
+      hasPassword: requirePassword && !!createPassword.trim(),
       messages: [
         {
           id: 'system-created',
@@ -369,6 +398,14 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
 
     try {
       await setDoc(doc(db, 'rooms', newCode), newRoom);
+      
+      if (requirePassword && createPassword.trim()) {
+        const hash = await hashPassword(createPassword.trim());
+        await setDoc(doc(db, 'rooms', newCode, 'secure', 'config'), {
+          passwordHash: hash
+        });
+      }
+
       setRoomCode(newCode);
       setIsJoined(true);
     } catch (e) {
@@ -377,13 +414,42 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
     }
   };
 
+  const proceedJoinRoom = async (code: string) => {
+    try {
+      const roomRef = doc(db, 'rooms', code);
+      const pUser: Participant = {
+        id: userId,
+        name: nickname.trim(),
+        joinedAt: new Date().toISOString()
+      };
+
+      await updateDoc(roomRef, {
+        participants: arrayUnion(pUser),
+        messages: arrayUnion({
+          id: `system-joined-${Date.now()}`,
+          senderId: 'system',
+          senderName: 'Система',
+          text: `${nickname.trim()} присоединился к комнате.`,
+          sentAt: new Date().toISOString()
+        })
+      });
+
+      setRoomCode(code);
+      setIsJoined(true);
+      setPasswordModalOpen(false);
+    } catch (e) {
+      console.error(e);
+      setErrorMsg('Ошибка записи участника в комнату');
+    }
+  };
+
   // Join Room Action
-  const handleJoinRoom = async () => {
+  const handleJoinRoom = async (codeOverride?: string) => {
     if (!nickname.trim()) {
       setErrorMsg('Пожалуйста, введите ваш никнейм');
       return;
     }
-    const cleanCode = roomCodeInput.trim();
+    const cleanCode = codeOverride || roomCodeInput.trim();
     if (!cleanCode) {
       setErrorMsg('Введите код комнаты');
       return;
@@ -399,29 +465,62 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
         return;
       }
 
-      const pUser: Participant = {
-        id: userId,
-        name: nickname.trim(),
-        joinedAt: new Date().toISOString()
-      };
+      const roomData = roomSnap.data() as RoomData;
 
-      // Add user to participants list
-      await updateDoc(roomRef, {
-        participants: arrayUnion(pUser),
-        messages: arrayUnion({
-          id: `system-joined-${Date.now()}`,
-          senderId: 'system',
-          senderName: 'Система',
-          text: `${nickname.trim()} присоединился к комнате.`,
-          sentAt: new Date().toISOString()
-        })
-      });
+      // Bypass password if Host or already inside
+      const isRoomHost = roomData.hostId === userId;
+      const isAlreadyParticipant = roomData.participants?.some(p => p.id === userId);
 
-      setRoomCode(cleanCode);
-      setIsJoined(true);
+      if (roomData.hasPassword && !isRoomHost && !isAlreadyParticipant) {
+        setTargetRoomCode(cleanCode);
+        setPasswordInput('');
+        setPasswordError('');
+        setPasswordModalOpen(true);
+        return;
+      }
+
+      await proceedJoinRoom(cleanCode);
     } catch (e) {
       console.error(e);
       setErrorMsg('Ошибка подключения к комнате');
+    }
+  };
+
+  const handleVerifyPasswordAndJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) {
+      setPasswordError('Введите пароль');
+      return;
+    }
+    setPasswordError('');
+
+    try {
+      const secureRef = doc(db, 'rooms', targetRoomCode, 'secure', 'config');
+      const secureSnap = await getDoc(secureRef);
+
+      if (!secureSnap.exists()) {
+        setPasswordError('Ошибка проверки безопасности комнаты');
+        return;
+      }
+
+      const { passwordHash } = secureSnap.data() as { passwordHash: string };
+      const inputHash = await hashPassword(passwordInput.trim());
+
+      if (inputHash !== passwordHash) {
+        setPasswordError('Неверный пароль');
+        return;
+      }
+
+      const roomSnap = await getDoc(doc(db, 'rooms', targetRoomCode));
+      if (!roomSnap.exists()) {
+        setPasswordError('Комната не найдена');
+        return;
+      }
+
+      await proceedJoinRoom(targetRoomCode);
+    } catch (e) {
+      console.error(e);
+      setPasswordError('Ошибка авторизации в комнате');
     }
   };
 
@@ -483,6 +582,37 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       console.error(e);
     }
   };
+
+  // Listen to public rooms list in real-time when on the home screen and list is active
+  useEffect(() => {
+    if (isJoined || activeTab !== 'public') return;
+
+    setIsLoadingRooms(true);
+    const q = query(
+      collection(db, 'rooms'), 
+      where('visibility', '==', 'public')
+    );
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const rooms: RoomData[] = [];
+      snapshot.forEach((docSnap) => {
+        rooms.push(docSnap.data() as RoomData);
+      });
+      // Sort rooms: participants count descending
+      const sorted = rooms.sort((a, b) => {
+        const countA = a.participants?.length || 0;
+        const countB = b.participants?.length || 0;
+        return countB - countA;
+      });
+      setPublicRooms(sorted);
+      setIsLoadingRooms(false);
+    }, (error) => {
+      console.warn('Failed to listen to public rooms:', error);
+      setIsLoadingRooms(false);
+    });
+
+    return () => unsub();
+  }, [isJoined, activeTab]);
 
   // 1. Subscribe to Room Data in real-time
   useEffect(() => {
@@ -1526,15 +1656,21 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   };
 
   const roomContent = (
-    <div className={`w-full bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex flex-col md:flex-row shadow-soft relative ${isInline ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' : 'w-full max-w-6xl h-[90vh]'}`}>
+    <div className={`w-full bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex flex-col md:flex-row shadow-soft relative ${
+      isInline 
+        ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' 
+        : isJoined 
+          ? 'w-full max-w-6xl h-[90vh]' 
+          : 'w-full max-w-[420px] h-auto p-5 md:p-6 my-auto mx-auto'
+    }`}>
         
         {/* Close Room button (Outside joint watch) */}
         {!isJoined && onClose && (
           <button 
             onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full bg-bg-app border border-border-color text-text-secondary hover:text-text-primary transition-all cursor-pointer z-10 shadow-soft"
+            className="absolute top-4 right-4 p-1.5 rounded-full bg-bg-app border border-border-color text-text-secondary hover:text-text-primary transition-all cursor-pointer z-10 shadow-soft"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         )}
 
@@ -1542,52 +1678,58 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
             SCREEN A: JOIN OR CREATE SCREEN
             ================================================================== */}
         {!isJoined ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6 max-w-2xl mx-auto">
-            <div className="w-16 h-16 rounded-3xl bg-accent-light border border-accent-color/30 flex items-center justify-center text-accent-color shadow-soft">
-              <Users className="w-8 h-8" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 w-full">
+            <div className="w-12 h-12 rounded-2xl bg-accent-light border border-accent-color/30 flex items-center justify-center text-accent-color shadow-soft">
+              <Users className="w-6 h-6" />
             </div>
 
             <div>
-              <h2 className="text-xl md:text-2xl font-extrabold text-text-primary">Совместный просмотр</h2>
-              <p className="text-xs text-text-secondary mt-1">Смотрите видео вместе, синхронизируйте плеер и общайтесь в реальном времени!</p>
+              <h2 className="text-lg md:text-xl font-extrabold text-text-primary">Совместный просмотр</h2>
+              <p className="text-[10px] text-text-secondary mt-1">Смотрите видео вместе, синхронизируйте плеер и общайтесь в реальном времени!</p>
             </div>
 
             {/* Nickname input */}
             <div className="w-full space-y-1 text-left max-w-md">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider ml-1">Ваш никнейм</label>
+              <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider ml-1">Ваш никнейм</label>
               <input 
                 type="text" 
                 value={nickname}
                 onChange={(e) => handleSaveNickname(e.target.value)}
                 placeholder="Никнейм для чата..."
-                className="w-full ide-input rounded-xl text-center py-2.5 font-bold"
+                className="w-full ide-input rounded-xl text-center py-2 text-xs font-bold"
               />
             </div>
 
             {/* TAB SELECTOR */}
-            <div className="flex bg-bg-app border border-border-color p-0.5 rounded-xl text-xs font-bold text-text-secondary select-none w-full max-w-md">
+            <div className="flex bg-bg-app border border-border-color p-0.5 rounded-xl text-[10px] font-bold text-text-secondary select-none w-full max-w-md">
               <button 
                 onClick={() => { setErrorMsg(''); setActiveTab('create'); }}
-                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${activeTab === 'create' ? 'bg-accent-color text-white shadow-soft font-extrabold' : 'hover:text-text-primary'}`}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${activeTab === 'create' ? 'bg-accent-color text-white shadow-soft font-extrabold' : 'hover:text-text-primary'}`}
               >
-                Создать комнату
+                Создать
               </button>
               <button 
                 onClick={() => { setErrorMsg(''); setActiveTab('join'); }}
-                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${activeTab === 'join' ? 'bg-accent-color text-white shadow-soft font-extrabold' : 'hover:text-text-primary'}`}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${activeTab === 'join' ? 'bg-accent-color text-white shadow-soft font-extrabold' : 'hover:text-text-primary'}`}
               >
-                Войти в комнату
+                Войти по коду
+              </button>
+              <button 
+                onClick={() => { setErrorMsg(''); setActiveTab('public'); }}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${activeTab === 'public' ? 'bg-accent-color text-white shadow-soft font-extrabold' : 'hover:text-text-primary'}`}
+              >
+                Открытые
               </button>
             </div>
 
             {/* TAB PANELS */}
-            <div className="w-full max-w-md bg-bg-app/50 border border-border-color rounded-2xl p-5 space-y-4 shadow-soft">
-              {activeTab === 'create' ? (
-                <div className="space-y-4">
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Название сериала / видео</label>
+            <div className="w-full max-w-md bg-bg-app/50 border border-border-color rounded-2xl p-4 space-y-3.5 shadow-soft">
+              {activeTab === 'create' && (
+                <div className="space-y-3">
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider">Название сериала / видео</label>
                     {showTitle ? (
-                      <div className="flex items-center gap-2 text-xs font-bold text-text-primary bg-bg-card border border-border-color rounded-xl px-3 py-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-text-primary bg-bg-card border border-border-color rounded-xl px-3 py-1.5">
                         <Film className="w-4 h-4 text-accent-color" />
                         <span className="truncate">{showTitle}</span>
                       </div>
@@ -1597,55 +1739,156 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
                         value={customShowTitle}
                         onChange={(e) => setCustomShowTitle(e.target.value)}
                         placeholder="Название видео..."
-                        className="w-full ide-input text-xs"
+                        className="w-full ide-input text-xs py-1.5"
                       />
                     )}
                   </div>
 
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Ссылка на видео (YouTube или Direct MP4)</label>
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider">Ссылка на видео (YouTube, MP4, HLS...)</label>
                     <input 
                       type="text"
                       value={videoUrlInput}
                       onChange={(e) => setVideoUrlInput(e.target.value)}
                       placeholder="Вставьте URL видео..."
-                      className="w-full ide-input text-xs"
+                      className="w-full ide-input text-xs py-1.5"
                     />
+                  </div>
+
+                  {/* Visibility & Password Section */}
+                  <div className="border-t border-border-color/65 pt-2.5 space-y-2.5">
+                    <div className="flex items-center justify-between text-left">
+                      <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">Тип комнаты</span>
+                      <div className="flex bg-bg-app border border-border-color p-0.5 rounded-lg text-[9px] font-bold text-text-secondary select-none">
+                        <button
+                          type="button"
+                          onClick={() => setCreateVisibility('public')}
+                          className={`px-2 py-0.5 rounded transition-all cursor-pointer ${createVisibility === 'public' ? 'bg-accent-color text-white shadow-soft font-extrabold' : 'hover:text-text-primary'}`}
+                        >
+                          Открытая
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCreateVisibility('private')}
+                          className={`px-2 py-0.5 rounded transition-all cursor-pointer ${createVisibility === 'private' ? 'bg-accent-color text-white shadow-soft font-extrabold' : 'hover:text-text-primary'}`}
+                        >
+                          Закрытая
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-left">
+                      <label className="flex items-center gap-1.5 text-[10px] font-bold text-text-secondary cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={requirePassword}
+                          onChange={(e) => setRequirePassword(e.target.checked)}
+                          className="rounded border-border-color text-accent-color focus:ring-accent-color/30 w-3 h-3 cursor-pointer"
+                        />
+                        <span>Требовать пароль при входе</span>
+                      </label>
+
+                      {requirePassword && (
+                        <input
+                          type="password"
+                          value={createPassword}
+                          onChange={(e) => setCreatePassword(e.target.value)}
+                          placeholder="Задайте пароль..."
+                          className="w-full ide-input text-xs py-1.5"
+                          required
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <button 
                     onClick={handleCreateRoom}
-                    className="w-full py-2.5 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft cursor-pointer transition-all active:scale-[0.98]"
+                    className="w-full py-2 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft cursor-pointer transition-all active:scale-[0.98]"
                   >
                     Создать комнату
                   </button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Код комнаты (5 цифр)</label>
+              )}
+
+              {activeTab === 'join' && (
+                <div className="space-y-3">
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider">Код комнаты (5 цифр)</label>
                     <input 
                       type="text"
                       value={roomCodeInput}
                       onChange={(e) => setRoomCodeInput(e.target.value)}
                       placeholder="Например: 78945"
                       maxLength={5}
-                      className="w-full ide-input text-center text-sm font-mono tracking-widest font-extrabold rounded-xl py-2"
+                      className="w-full ide-input text-center text-sm font-mono tracking-widest font-extrabold rounded-xl py-1.5"
                     />
                   </div>
 
                   <button 
-                    onClick={handleJoinRoom}
-                    className="w-full py-2.5 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft cursor-pointer transition-all active:scale-[0.98]"
+                    onClick={() => handleJoinRoom()}
+                    className="w-full py-2 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft cursor-pointer transition-all active:scale-[0.98]"
                   >
                     Войти в комнату
                   </button>
                 </div>
               )}
+
+              {activeTab === 'public' && (
+                <div className="space-y-2.5">
+                  <div className="text-[9px] font-bold text-text-muted uppercase tracking-wider text-left">Активные открытые комнаты</div>
+                  
+                  {isLoadingRooms ? (
+                    <p className="text-xs text-text-secondary py-4 text-center">Загрузка комнат...</p>
+                  ) : publicRooms.length === 0 ? (
+                    <div className="text-center py-4 space-y-1 text-text-muted">
+                      <Users className="w-6 h-6 mx-auto opacity-30 animate-pulse" />
+                      <p className="text-[10px] font-bold">Нет открытых комнат</p>
+                      <p className="text-[9px]">Создайте свою комнату и сделайте её открытой!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                      {publicRooms.map((roomItem) => (
+                        <div 
+                          key={roomItem.id} 
+                          className="bg-bg-app border border-border-color rounded-xl p-2 flex items-center justify-between gap-2.5 hover:border-accent-color/30 transition-all shadow-soft"
+                        >
+                          <div className="min-w-0 flex-1 text-left">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-extrabold text-text-primary">Комната {roomItem.id}</span>
+                              <span className="px-1.5 py-0.5 rounded bg-accent-color/10 border border-accent-color/15 text-accent-color text-[8px] font-extrabold flex items-center gap-0.5">
+                                <Users className="w-2.5 h-2.5" />
+                                <span>{roomItem.participants?.length || 0}</span>
+                              </span>
+                              {roomItem.hasPassword && (
+                                <span 
+                                  className="text-amber-500 text-[9px] font-bold flex items-center" 
+                                  title="Требуется пароль"
+                                >
+                                  🔒
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[9px] text-text-secondary truncate mt-0.5">
+                              {roomItem.videoUrl ? `Играет: ${roomItem.showTitle}` : 'Ожидание видео'}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => handleJoinRoom(roomItem.id)}
+                            className="px-2.5 py-1 bg-accent-color hover:bg-accent-hover text-white text-[9px] font-extrabold rounded-lg shadow-soft cursor-pointer transition-all active:scale-[0.98] shrink-0"
+                          >
+                            Войти
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {errorMsg && (
-              <p className="text-[10px] text-rose-500 font-bold bg-rose-500/10 border border-rose-500/20 px-4 py-2 rounded-xl w-full max-w-md">{errorMsg}</p>
+              <p className="text-[9px] text-rose-500 font-bold bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl w-full max-w-md">{errorMsg}</p>
             )}
           </div>
         ) : (
@@ -2150,6 +2393,50 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
             </div>
           </div>
         )}
+
+      {/* Password Modal */}
+      {passwordModalOpen && (
+        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-bg-card border border-border-color rounded-[24px] p-5 max-w-[340px] w-full space-y-4 shadow-2xl text-center animate-[fadeIn_0.15s_ease-out]">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500 mx-auto">
+              <span className="text-xl">🔒</span>
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-text-primary">Комната защищена паролем</h3>
+              <p className="text-[10px] text-text-secondary mt-1">Для входа в комнату {targetRoomCode} введите пароль</p>
+            </div>
+            <form onSubmit={handleVerifyPasswordAndJoin} className="space-y-3">
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="Введите пароль..."
+                className="w-full ide-input text-center text-xs py-2 rounded-xl"
+                autoFocus
+                required
+              />
+              {passwordError && (
+                <p className="text-[9px] text-rose-500 font-bold bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-lg">{passwordError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalOpen(false)}
+                  className="flex-1 py-1.5 border border-border-color hover:bg-bg-app text-text-secondary hover:text-text-primary text-[10px] font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-1.5 bg-accent-color hover:bg-accent-hover text-white text-[10px] font-bold rounded-xl shadow-soft cursor-pointer transition-all active:scale-[0.98]"
+                >
+                  Войти
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
