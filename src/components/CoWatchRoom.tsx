@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import { 
   X, Send, Users, MessageSquare, Play, Pause, 
-  Volume2, VolumeX, LogOut, Copy, Check, Info, Film
+  Volume2, VolumeX, LogOut, Copy, Check, Info, Film, Maximize2, Settings
 } from 'lucide-react';
 import { getOrCreateUserId } from '../context/StreamingContext';
 
@@ -30,9 +30,11 @@ interface RoomData {
   videoUrl: string;
   isPlaying: boolean;
   currentTime: number;
+  playbackRate?: number;
   lastUpdated: string;
   participants: Participant[];
   messages: Message[];
+  pings?: Record<string, any>;
 }
 
 interface CoWatchRoomProps {
@@ -75,13 +77,30 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   const [chatInput, setChatInput] = useState('');
 
   // Player state
-  const [isMuted, setIsMuted] = useState(false);
+  const [localCurrentTime, setLocalCurrentTime] = useState(0);
+  const [localDuration, setLocalDuration] = useState(0);
+  const [localVolume, setLocalVolume] = useState(1);
+  const [localIsMuted, setLocalIsMuted] = useState(false);
+  const [localPlaybackRate, setLocalPlaybackRate] = useState(1);
+  const [showSpeedControls, setShowSpeedControls] = useState(false);
+  const [clockOffset, setClockOffset] = useState(0);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const youtubeRef = useRef<HTMLIFrameElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-  const localUpdateRef = useRef<boolean>(false); // flag to prevent infinite sync loops
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const ytPlayerRef = useRef<any>(null);
+
+  // Event blocking counters to prevent infinite sync loops
+  const ignorePlayEvent = useRef(0);
+  const ignorePauseEvent = useRef(0);
+  const ignoreSeekEvent = useRef(0);
+  const ignoreYTEvent = useRef(0);
+
+  const pingStartRef = useRef(0);
+  const pingCompleted = useRef(false);
+  const hostInitialized = useRef(false);
 
   const isHost = room ? room.hostId === userId : false;
 
@@ -274,126 +293,342 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       }
       const data = snapshot.data() as RoomData;
       setRoom(data);
+
+      // Check for ping response to calculate clock offset
+      const pingTimestamp = (data as any).pings?.[userId];
+      if (pingTimestamp && typeof pingTimestamp.toDate === 'function') {
+        const serverTime = pingTimestamp.toDate().getTime();
+        const clientTimeBefore = pingStartRef.current;
+        if (clientTimeBefore > 0) {
+          const clientTimeAfter = Date.now();
+          const estimatedServerTime = serverTime + (clientTimeAfter - clientTimeBefore) / 2;
+          const calculatedOffset = estimatedServerTime - clientTimeAfter;
+          setClockOffset(calculatedOffset);
+          pingStartRef.current = 0; // Reset
+        }
+      }
     });
 
     return () => unsub();
-  }, [roomCode, isJoined]);
+  }, [roomCode, isJoined, userId]);
 
   // Scroll chat to bottom on new messages
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [room?.messages]);
 
-  // 2. Playback Synchronization Logic (Host -> DB, DB -> Guests)
+  const getCurrentServerTime = () => Date.now() + clockOffset;
+
+  // Trigger Firestore ping to calculate clock offset
   useEffect(() => {
-    if (!room || !isJoined) return;
+    if (!isJoined || !roomCode || pingCompleted.current) return;
+    pingCompleted.current = true;
 
-    // Check if the URL is YouTube or Direct Video link
-    const isYoutube = room.videoUrl.includes('youtube.com') || room.videoUrl.includes('youtu.be');
-
-    // Host updates playback state in Firestore
-    if (isHost) {
-      const interval = setInterval(() => {
-        let time = 0;
-        if (!isYoutube && videoRef.current) {
-          time = videoRef.current.currentTime;
-        }
-        
-        // Host pushes current time periodically to prevent massive drifts
-        if (time > 0 && Math.abs(room.currentTime - time) > 2) {
-          updateDoc(doc(db, 'rooms', roomCode), {
-            currentTime: time,
-            lastUpdated: new Date().toISOString()
-          }).catch(console.error);
-        }
-      }, 5000);
-
-      return () => clearInterval(interval);
-    } 
-    
-    // Guest synchronizes with Firestore state
-    else {
-      if (localUpdateRef.current) {
-        localUpdateRef.current = false;
-        return;
+    const runPing = async () => {
+      pingStartRef.current = Date.now();
+      const roomRef = doc(db, 'rooms', roomCode);
+      try {
+        await updateDoc(roomRef, {
+          [`pings.${userId}`]: serverTimestamp()
+        });
+      } catch (e) {
+        console.error('Failed to write ping timestamp', e);
       }
+    };
+    runPing();
+  }, [isJoined, roomCode, userId]);
 
-      // Calculate latency correction
-      const lastUpdate = new Date(room.lastUpdated).getTime();
-      const now = Date.now();
-      const diffSeconds = (now - lastUpdate) / 1000;
-      
-      const targetTime = room.isPlaying 
-        ? room.currentTime + Math.min(diffSeconds, 5) // cap offset correction at 5s to prevent massive errors
-        : room.currentTime;
+  // Load YouTube Iframe API if URL is YouTube
+  const isYoutube = room ? room.videoUrl.includes('youtube.com') || room.videoUrl.includes('youtu.be') : false;
 
-      if (isYoutube) {
-        // Post message to YouTube Iframe
-        if (youtubeRef.current && youtubeRef.current.contentWindow) {
-          const ytWindow = youtubeRef.current.contentWindow;
-          // Play/Pause sync
-          const playCommand = room.isPlaying ? 'playVideo' : 'pauseVideo';
-          ytWindow.postMessage(`{"event":"command","func":"${playCommand}","args":""}`, '*');
-          
-          // Time sync (only seek if difference > 3s)
-          ytWindow.postMessage(`{"event":"command","func":"seekTo","args":[${targetTime}, true]}`, '*');
+  useEffect(() => {
+    if (!isYoutube) return;
+
+    // Load YouTube Iframe API if not loaded
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+  }, [isYoutube]);
+
+  // Initialize YouTube Player
+  useEffect(() => {
+    if (!isYoutube || !roomCode) return;
+
+    let player: any = null;
+    let checkInterval = setInterval(() => {
+      if ((window as any).YT && (window as any).YT.Player && youtubeRef.current) {
+        clearInterval(checkInterval);
+        initializePlayer();
+      }
+    }, 200);
+
+    function initializePlayer() {
+      if (!youtubeRef.current) return;
+      player = new (window as any).YT.Player(youtubeRef.current, {
+        events: {
+          onReady: (event: any) => {
+            ytPlayerRef.current = event.target;
+            event.target.setVolume(localVolume * 100);
+            if (localIsMuted) {
+              event.target.mute();
+            } else {
+              event.target.unMute();
+            }
+          },
+          onStateChange: (event: any) => {
+            const state = event.data;
+            const time = event.target.getCurrentTime();
+
+            if (!isHost) return;
+
+            if (ignoreYTEvent.current > 0) {
+              ignoreYTEvent.current--;
+              return;
+            }
+
+            if (state === (window as any).YT.PlayerState.PLAYING) {
+              updateDoc(doc(db, 'rooms', roomCode), {
+                isPlaying: true,
+                currentTime: time,
+                lastUpdated: serverTimestamp()
+              }).catch(console.error);
+            } else if (state === (window as any).YT.PlayerState.PAUSED) {
+              updateDoc(doc(db, 'rooms', roomCode), {
+                isPlaying: false,
+                currentTime: time,
+                lastUpdated: serverTimestamp()
+              }).catch(console.error);
+            }
+          }
         }
-      } else {
-        // HTML5 Video
-        const player = videoRef.current;
-        if (player) {
-          // Play/Pause sync
-          if (room.isPlaying && player.paused) {
-            player.play().catch(() => {});
-          } else if (!room.isPlaying && !player.paused) {
-            player.pause();
-          }
+      });
+    }
 
-          // Time sync (seek if off by > 3s)
-          if (Math.abs(player.currentTime - targetTime) > 3) {
-            player.currentTime = targetTime;
-          }
+    return () => {
+      clearInterval(checkInterval);
+      if (player && typeof player.destroy === 'function') {
+        player.destroy();
+      }
+      ytPlayerRef.current = null;
+    };
+  }, [isYoutube, roomCode, isHost]);
+
+  // Poll YouTube current time for custom controls slider
+  useEffect(() => {
+    if (!isYoutube || !isJoined) return;
+
+    const interval = setInterval(() => {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+        setLocalCurrentTime(ytPlayer.getCurrentTime());
+        if (typeof ytPlayer.getDuration === 'function') {
+          setLocalDuration(ytPlayer.getDuration());
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isYoutube, isJoined]);
+
+  // Host updates playback state in Firestore to prevent drifts
+  useEffect(() => {
+    if (!room || !isJoined || !isHost) return;
+
+    const interval = setInterval(() => {
+      let time = 0;
+      if (isYoutube && ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === 'function') {
+        time = ytPlayerRef.current.getCurrentTime();
+      } else if (!isYoutube && videoRef.current) {
+        time = videoRef.current.currentTime;
+      }
+      
+      // Host pushes current time periodically to prevent massive drifts
+      if (time > 0 && Math.abs(room.currentTime - time) > 1.5) {
+        updateDoc(doc(db, 'rooms', roomCode), {
+          currentTime: time,
+          lastUpdated: serverTimestamp()
+        }).catch(console.error);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [room?.currentTime, isHost, isJoined, roomCode, isYoutube]);
+
+  // Sync host player state with the database exactly once on load
+  useEffect(() => {
+    if (!room || !isJoined || !isHost) return;
+    if (hostInitialized.current) return;
+
+    const player = videoRef.current;
+    const ytPlayer = ytPlayerRef.current;
+
+    if (isYoutube) {
+      if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+        hostInitialized.current = true;
+        if (room.isPlaying) {
+          ignoreYTEvent.current++;
+          ytPlayer.playVideo();
+        } else {
+          ignoreYTEvent.current++;
+          ytPlayer.pauseVideo();
+        }
+        ignoreYTEvent.current++;
+        ytPlayer.seekTo(room.currentTime, true);
+        if (room.playbackRate) {
+          ytPlayer.setPlaybackRate(room.playbackRate);
+          setLocalPlaybackRate(room.playbackRate);
+        }
+      }
+    } else {
+      if (player) {
+        hostInitialized.current = true;
+        player.currentTime = room.currentTime;
+        if (room.isPlaying) {
+          ignorePlayEvent.current++;
+          player.play().catch(() => {
+            ignorePlayEvent.current = Math.max(0, ignorePlayEvent.current - 1);
+          });
+        } else {
+          ignorePauseEvent.current++;
+          player.pause();
+        }
+        if (room.playbackRate) {
+          player.playbackRate = room.playbackRate;
+          setLocalPlaybackRate(room.playbackRate);
         }
       }
     }
-  }, [room?.isPlaying, room?.currentTime, room?.lastUpdated, isHost, isJoined, roomCode]);
+  }, [room, isHost, isJoined, isYoutube]);
+
+  // Guest synchronizes with Firestore state
+  useEffect(() => {
+    if (!room || !isJoined || isHost) return;
+
+    const player = videoRef.current;
+    const ytPlayer = ytPlayerRef.current;
+
+    // Calculate latency correction based on server timestamp
+    let lastUpdatedServerTime = Date.now();
+    if (room.lastUpdated) {
+      if (typeof room.lastUpdated === 'string') {
+        lastUpdatedServerTime = new Date(room.lastUpdated).getTime();
+      } else if (typeof (room.lastUpdated as any).toDate === 'function') {
+        lastUpdatedServerTime = (room.lastUpdated as any).toDate().getTime();
+      } else if ((room.lastUpdated as any).seconds) {
+        lastUpdatedServerTime = (room.lastUpdated as any).seconds * 1000 + ((room.lastUpdated as any).nanoseconds || 0) / 1000000;
+      }
+    }
+
+    const nowServerTime = getCurrentServerTime();
+    const elapsedSeconds = Math.max(0, (nowServerTime - lastUpdatedServerTime) / 1000);
+    
+    const targetTime = room.isPlaying 
+      ? room.currentTime + elapsedSeconds * (room.playbackRate || 1)
+      : room.currentTime;
+
+    if (isYoutube) {
+      if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+        const ytState = ytPlayer.getPlayerState();
+        // Play/Pause sync
+        if (room.isPlaying && ytState !== (window as any).YT.PlayerState.PLAYING) {
+          ignoreYTEvent.current++;
+          ytPlayer.playVideo();
+        } else if (!room.isPlaying && ytState !== (window as any).YT.PlayerState.PAUSED) {
+          ignoreYTEvent.current++;
+          ytPlayer.pauseVideo();
+        }
+
+        // Time sync
+        const ytTime = ytPlayer.getCurrentTime();
+        if (Math.abs(ytTime - targetTime) > 1.0) {
+          ignoreYTEvent.current++;
+          ytPlayer.seekTo(targetTime, true);
+        }
+      }
+    } else {
+      if (player) {
+        // Play/Pause sync
+        if (room.isPlaying && player.paused) {
+          if (ignorePlayEvent.current === 0) {
+            ignorePlayEvent.current++;
+            player.play().catch(() => {
+              ignorePlayEvent.current = Math.max(0, ignorePlayEvent.current - 1);
+            });
+          }
+        } else if (!room.isPlaying && !player.paused) {
+          if (ignorePauseEvent.current === 0) {
+            ignorePauseEvent.current++;
+            player.pause();
+          }
+        }
+
+        // Time sync
+        const diff = player.currentTime - targetTime;
+        if (Math.abs(diff) > 1.0) {
+          // Hard seek
+          ignoreSeekEvent.current++;
+          player.currentTime = targetTime;
+          player.playbackRate = room.playbackRate || 1;
+        } else if (Math.abs(diff) > 0.15) {
+          // Soft drift correction by modifying playbackRate
+          const adjustment = diff < 0 ? 1.05 : 0.95;
+          player.playbackRate = (room.playbackRate || 1) * adjustment;
+        } else {
+          // Reset to normal rate
+          player.playbackRate = room.playbackRate || 1;
+        }
+      }
+    }
+  }, [room?.isPlaying, room?.currentTime, room?.lastUpdated, room?.playbackRate, isHost, isJoined, isYoutube, clockOffset]);
 
   // Host Player Event Handlers
   const handleHostPlay = () => {
     if (!isHost || !roomCode) return;
+    if (ignorePlayEvent.current > 0) {
+      ignorePlayEvent.current--;
+      return;
+    }
     let time = 0;
     if (videoRef.current) time = videoRef.current.currentTime;
     
-    localUpdateRef.current = true;
     updateDoc(doc(db, 'rooms', roomCode), {
       isPlaying: true,
       currentTime: time,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: serverTimestamp()
     }).catch(console.error);
   };
 
   const handleHostPause = () => {
     if (!isHost || !roomCode) return;
+    if (ignorePauseEvent.current > 0) {
+      ignorePauseEvent.current--;
+      return;
+    }
     let time = 0;
     if (videoRef.current) time = videoRef.current.currentTime;
 
-    localUpdateRef.current = true;
     updateDoc(doc(db, 'rooms', roomCode), {
       isPlaying: false,
       currentTime: time,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: serverTimestamp()
     }).catch(console.error);
   };
 
   const handleHostSeek = () => {
     if (!isHost || !roomCode) return;
+    if (ignoreSeekEvent.current > 0) {
+      ignoreSeekEvent.current--;
+      return;
+    }
     let time = 0;
     if (videoRef.current) time = videoRef.current.currentTime;
 
-    localUpdateRef.current = true;
     updateDoc(doc(db, 'rooms', roomCode), {
       currentTime: time,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: serverTimestamp()
     }).catch(console.error);
   };
 
@@ -409,8 +644,174 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
     return '';
   };
 
-  const isYoutube = room ? room.videoUrl.includes('youtube.com') || room.videoUrl.includes('youtu.be') : false;
   const youtubeId = room ? getYoutubeId(room.videoUrl) : '';
+
+  const toggleHostPlay = () => {
+    if (!isHost || !roomCode) return;
+    const nextPlaying = !room?.isPlaying;
+    let time = 0;
+
+    if (isYoutube) {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+        time = ytPlayer.getCurrentTime();
+        if (nextPlaying) {
+          ignoreYTEvent.current++;
+          ytPlayer.playVideo();
+        } else {
+          ignoreYTEvent.current++;
+          ytPlayer.pauseVideo();
+        }
+      }
+    } else {
+      const player = videoRef.current;
+      if (player) {
+        time = player.currentTime;
+        if (nextPlaying) {
+          ignorePlayEvent.current++;
+          player.play().catch(() => {
+            ignorePlayEvent.current = Math.max(0, ignorePlayEvent.current - 1);
+          });
+        } else {
+          ignorePauseEvent.current++;
+          player.pause();
+        }
+      }
+    }
+
+    updateDoc(doc(db, 'rooms', roomCode), {
+      isPlaying: nextPlaying,
+      currentTime: time,
+      lastUpdated: serverTimestamp()
+    }).catch(console.error);
+  };
+
+  const handlePlayPauseClick = () => {
+    if (!isHost) return;
+    toggleHostPlay();
+  };
+
+  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isHost || !roomCode) return;
+    const seekTime = parseFloat(e.target.value);
+    setLocalCurrentTime(seekTime);
+
+    if (isYoutube) {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+        ignoreYTEvent.current++;
+        ytPlayer.seekTo(seekTime, true);
+      }
+    } else {
+      const player = videoRef.current;
+      if (player) {
+        ignoreSeekEvent.current++;
+        player.currentTime = seekTime;
+      }
+    }
+
+    updateDoc(doc(db, 'rooms', roomCode), {
+      currentTime: seekTime,
+      lastUpdated: serverTimestamp()
+    }).catch(console.error);
+  };
+
+  const handleVolumeSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vol = parseFloat(e.target.value);
+    setLocalVolume(vol);
+    setLocalIsMuted(vol === 0);
+
+    if (isYoutube) {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+        ytPlayer.setVolume(vol * 100);
+        if (vol === 0) {
+          ytPlayer.mute();
+        } else {
+          ytPlayer.unMute();
+        }
+      }
+    } else {
+      const player = videoRef.current;
+      if (player) {
+        player.volume = vol;
+        player.muted = vol === 0;
+      }
+    }
+  };
+
+  const toggleLocalMute = () => {
+    const nextMuted = !localIsMuted;
+    setLocalIsMuted(nextMuted);
+
+    if (isYoutube) {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.mute === 'function') {
+        if (nextMuted) {
+          ytPlayer.mute();
+        } else {
+          ytPlayer.unMute();
+          ytPlayer.setVolume(localVolume * 100);
+        }
+      }
+    } else {
+      const player = videoRef.current;
+      if (player) {
+        player.muted = nextMuted;
+      }
+    }
+  };
+
+  const changeHostSpeed = (rate: number) => {
+    if (!isHost || !roomCode) return;
+    setLocalPlaybackRate(rate);
+    setShowSpeedControls(false);
+
+    if (isYoutube) {
+      const ytPlayer = ytPlayerRef.current;
+      if (ytPlayer && typeof ytPlayer.setPlaybackRate === 'function') {
+        ytPlayer.setPlaybackRate(rate);
+      }
+    } else {
+      const player = videoRef.current;
+      if (player) {
+        player.playbackRate = rate;
+      }
+    }
+
+    updateDoc(doc(db, 'rooms', roomCode), {
+      playbackRate: rate,
+      lastUpdated: serverTimestamp()
+    }).catch(console.error);
+  };
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error('Fullscreen failed', err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const formatTime = (secs: number) => {
+    if (isNaN(secs)) return '00:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+  };
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    setLocalCurrentTime(videoRef.current.currentTime);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (!videoRef.current) return;
+    setLocalDuration(videoRef.current.duration);
+  };
 
   const roomContent = (
     <div className={`w-full bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex flex-col md:flex-row shadow-soft relative ${isInline ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' : 'w-full max-w-6xl h-[90vh]'}`}>
@@ -578,13 +979,16 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
                 </div>
               </div>
 
-              {/* Player Area */}
-              <div className="flex-1 bg-black rounded-2xl overflow-hidden border border-border-color shadow-soft relative mt-4 min-h-[300px] flex items-center justify-center">
+              {/* Player Area with custom controls */}
+              <div 
+                ref={containerRef}
+                className="flex-1 bg-black rounded-2xl overflow-hidden border border-border-color shadow-soft relative mt-4 min-h-[300px] flex items-center justify-center group/player"
+              >
                 {isYoutube ? (
                   // YouTube Video Player
                   <iframe 
                     ref={youtubeRef}
-                    src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=0&mute=${isMuted ? 1 : 0}&rel=0&controls=${isHost ? 1 : 0}`}
+                    src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=0&mute=${localIsMuted ? 1 : 0}&rel=0&controls=0`}
                     className="w-full h-full border-none absolute inset-0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -595,74 +999,109 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
                     ref={videoRef}
                     src={room?.videoUrl}
                     className="w-full h-full object-contain absolute inset-0"
-                    controls={isHost}
+                    controls={false}
                     onPlay={isHost ? handleHostPlay : undefined}
                     onPause={isHost ? handleHostPause : undefined}
                     onSeeked={isHost ? handleHostSeek : undefined}
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
                   />
                 )}
 
-                {/* Cover overlay for Guests to restrict control */}
+                {/* Overlay to block direct guest clicks on video content but keep controls clickable */}
                 {!isHost && (
                   <div 
-                    className="absolute inset-0 bg-transparent cursor-not-allowed" 
+                    className="absolute inset-x-0 top-0 bottom-16 bg-transparent cursor-not-allowed z-10" 
                     title="Управление плеером доступно только создателю комнаты" 
                   />
                 )}
-              </div>
 
-              {/* Host Controller Tools (Custom play/pause indicator if YouTube is used) */}
-              {isHost && isYoutube && (
-                <div className="mt-3 bg-bg-app border border-border-color rounded-2xl p-3 flex items-center justify-between shrink-0 shadow-soft">
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => {
-                        const nextState = !room?.isPlaying;
-                        updateDoc(doc(db, 'rooms', roomCode), {
-                          isPlaying: nextState,
-                          lastUpdated: new Date().toISOString()
-                        }).catch(console.error);
-                      }}
-                      className="px-4 py-2 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-soft cursor-pointer transition-all"
-                    >
-                      {room?.isPlaying ? (
-                        <>
-                          <Pause className="w-3.5 h-3.5 fill-current" />
-                          <span>Пауза</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>Старт</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button 
-                      onClick={() => setIsMuted(!isMuted)}
-                      className="p-2 bg-bg-card hover:bg-bg-app border border-border-color text-text-secondary hover:text-text-primary rounded-xl cursor-pointer transition-all flex items-center justify-center shadow-soft"
-                      title={isMuted ? "Включить звук" : "Выключить звук"}
-                    >
-                      {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                    </button>
+                {/* Custom Controls Bar */}
+                <div className="absolute bottom-0 inset-x-0 h-16 bg-slate-950/80 border-t border-slate-900/60 opacity-0 group-hover/player:opacity-100 focus-within:opacity-100 transition-opacity duration-300 flex flex-col justify-end px-4 pb-2 z-20 space-y-1.5 select-none">
+                  
+                  {/* Progress Bar */}
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[9px] font-mono text-slate-300">{formatTime(localCurrentTime)}</span>
+                    <input 
+                      type="range"
+                      min="0"
+                      max={localDuration || 100}
+                      value={localCurrentTime}
+                      onChange={handleSeekChange}
+                      disabled={!isHost}
+                      className={`flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600 hover:h-1.5 transition-all ${!isHost ? 'opacity-75 cursor-not-allowed' : ''}`}
+                    />
+                    <span className="text-[9px] font-mono text-slate-300">{formatTime(localDuration)}</span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Синхронизация YouTube</span>
-                    <button 
-                      onClick={() => {
-                        // Trigger seek synchronization to current time (e.g. restart sync)
-                        updateDoc(doc(db, 'rooms', roomCode), {
-                          lastUpdated: new Date().toISOString()
-                        }).catch(console.error);
-                      }}
-                      className="px-3 py-1.5 bg-bg-card hover:bg-bg-app border border-border-color text-text-secondary hover:text-text-primary rounded-lg text-[10px] font-bold cursor-pointer transition-all"
-                    >
-                      Обновить синхронизацию
-                    </button>
+                  {/* Control Buttons Row */}
+                  <div className="flex items-center justify-between text-slate-300 text-xs">
+                    <div className="flex items-center gap-4">
+                      {/* Play/Pause */}
+                      <button 
+                        onClick={handlePlayPauseClick} 
+                        disabled={!isHost}
+                        className={`hover:text-purple-400 transition-colors ${!isHost ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        {room?.isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                      </button>
+
+                      {/* Volume Controls */}
+                      <div className="flex items-center gap-1.5 group/volume">
+                        <button onClick={toggleLocalMute} className="hover:text-purple-400 transition-colors cursor-pointer">
+                          {localIsMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                        </button>
+                        <input 
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={localIsMuted ? 0 : localVolume}
+                          onChange={handleVolumeSliderChange}
+                          className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-slate-300 group-hover/volume:w-20 transition-all duration-300"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {/* Playback speed selector (only for host) */}
+                      {isHost && (
+                        <div className="relative">
+                          <button 
+                            onClick={() => setShowSpeedControls(!showSpeedControls)}
+                            className="hover:text-purple-400 transition-colors text-[10px] font-mono font-bold flex items-center gap-0.5 border border-slate-800 rounded px-1.5 py-0.5 cursor-pointer bg-slate-900"
+                          >
+                            <Settings className="w-3.5 h-3.5" />
+                            <span>{localPlaybackRate}x</span>
+                          </button>
+
+                          {showSpeedControls && (
+                            <div className="absolute bottom-8 right-0 bg-slate-950 border border-slate-900 rounded-lg py-1 shadow-2xl text-[10px] min-w-[65px] z-30 flex flex-col">
+                              {[0.5, 1, 1.25, 1.5, 2].map((rate) => (
+                                <button
+                                  key={rate}
+                                  onClick={() => changeHostSpeed(rate)}
+                                  className={`w-full text-left px-2.5 py-1.5 hover:bg-purple-600 hover:text-white transition-colors cursor-pointer ${
+                                    localPlaybackRate === rate ? 'text-purple-400 font-bold' : 'text-slate-300'
+                                  }`}
+                                >
+                                  {rate}x
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Fullscreen */}
+                      <button onClick={toggleFullscreen} className="hover:text-purple-400 transition-colors cursor-pointer">
+                        <Maximize2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              )}
+
+              </div>
 
               {/* Guest Controls Notice */}
               {!isHost && (
