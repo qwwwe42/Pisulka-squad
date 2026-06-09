@@ -10,20 +10,54 @@ export interface BunkerUserProfile {
 }
 
 export interface PlayerTraits {
+  gender: string;
+  physique: string;
+  humanTrait: string;
   profession: string;
-  biology: string;
   health: string;
   hobby: string;
   phobia: string;
-  inventory: string[];
-  character: string;
-  fact: string;
-  specialAction: {
+  largeInventory: string;
+  backpack: string;
+  additionalInfo: string;
+  specialAction1: {
     id: string;
     text: string;
     description: string;
     isUsed: boolean;
   };
+  specialAction2: {
+    id: string;
+    text: string;
+    description: string;
+    isUsed: boolean;
+  };
+}
+
+export interface BunkerDisease {
+  id: string;
+  name: string;
+  category: 'Вирусная' | 'Неинфекционная' | 'Психологическая' | 'Физическая';
+  system: string;
+  severity?: 'Лёгкая' | 'Средняя' | 'Тяжёлая' | 'Критическая';
+}
+
+export interface BunkerProfessionDef {
+  id: string;
+  name: string;
+  ability: string;
+}
+
+export interface BunkerPools {
+  professions: BunkerProfessionDef[];
+  diseases: BunkerDisease[];
+  hobbies: { id: string; name: string }[];
+  humanTraits: { id: string; text: string }[];
+  phobias: { id: string; text: string }[];
+  largeInventory: { id: string; text: string }[];
+  backpack: { id: string; text: string }[];
+  additionalInfo: { id: string; text: string }[];
+  specialActions: SpecialActionItem[];
 }
 
 export interface BunkerPlayer {

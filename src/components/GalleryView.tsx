@@ -69,7 +69,7 @@ export const GalleryView: React.FC = () => {
   const activePhoto = activePhotoIndex !== null ? gallery[activePhotoIndex] : null;
 
   return (
-    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
+    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] glass-panel">
       
       {/* HEADER SECTION */}
       <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 md:p-8 rounded-[32px] bg-bg-card border border-border-color overflow-hidden shadow-soft">

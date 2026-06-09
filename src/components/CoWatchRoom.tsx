@@ -1928,10 +1928,10 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   };
 
   const roomContent = (
-    <div className={`w-full bg-bg-card border border-border-color rounded-[32px] overflow-hidden flex shadow-soft relative transition-all duration-300 ${
+    <div className={`w-full overflow-hidden flex relative transition-all duration-300 glass-panel ${
       !isJoined 
-        ? 'max-w-[420px] h-auto flex-col p-5 md:p-6 mx-auto ' + (isInline ? 'mt-8 md:mt-16 mb-8' : 'my-auto')
-        : 'flex-col md:flex-row ' + (isInline ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' : 'max-w-6xl h-[90vh]')
+        ? 'max-w-[420px] h-auto flex-col mx-auto ' + (isInline ? 'mt-8 md:mt-16 mb-8' : 'my-auto')
+        : 'flex-col md:flex-row p-0 md:p-0 ' + (isInline ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' : 'max-w-6xl h-[90vh]')
     }`}>
         
         {/* Close Room button (Outside joint watch) */}

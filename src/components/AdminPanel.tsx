@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode, EmojiItem } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
+import { AdminBunkerDB } from './AdminBunkerDB';
 
 const generateId = (prefix: string) => `${prefix}-${Date.now()}`;
 
@@ -54,7 +55,7 @@ export const AdminPanel: React.FC = () => {
   }, [shows]);
 
   // Tabs
-  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions' | 'backgrounds'>('shows');
+  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions' | 'backgrounds' | 'bunker_db'>('shows');
 
   // Notification message
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -844,6 +845,17 @@ export const AdminPanel: React.FC = () => {
               <ImageIcon className="w-4 h-4" />
               Фоны вкладок
             </button>
+            <button
+              onClick={() => {
+                setAdminTab('bunker_db');
+              }}
+              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors ${
+                adminTab === 'bunker_db' ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              База Бункера
+            </button>
           </nav>
         </div>
 
@@ -889,6 +901,10 @@ export const AdminPanel: React.FC = () => {
         )}
 
         {/* TAB 1: SHOWS MANAGEMENT (UNIFIED) */}
+        {adminTab === 'bunker_db' && (
+          <AdminBunkerDB />
+        )}
+
         {adminTab === 'shows' && (
           <div className="space-y-6">
             {isAddingShow ? (

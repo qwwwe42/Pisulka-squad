@@ -39,33 +39,39 @@ export const BunkerPlaying: React.FC<Props> = ({ room, currentUserId, onRevealTr
   };
 
   const ORDERED_TRAITS: Array<keyof PlayerTraits> = [
-    'biology',
-    'health',
+    'gender',
+    'physique',
+    'humanTrait',
     'profession',
+    'health',
     'hobby',
     'phobia',
-    'inventory',
-    'character',
-    'fact',
-    'specialAction'
+    'largeInventory',
+    'backpack',
+    'additionalInfo',
+    'specialAction1',
+    'specialAction2'
   ];
 
   const traitLabels: Record<keyof PlayerTraits, string> = {
-    biology: 'Биология',
-    health: 'Здоровье',
+    gender: 'Пол/Возраст',
+    physique: 'Телослож.',
+    humanTrait: 'Характер',
     profession: 'Профессия',
+    health: 'Здоровье',
     hobby: 'Хобби',
     phobia: 'Фобия',
-    inventory: 'Инвентарь',
-    character: 'Характер',
-    fact: 'Факт',
-    specialAction: 'Спец. действ.'
+    largeInventory: 'Инвентарь',
+    backpack: 'Рюкзак',
+    additionalInfo: 'Факт',
+    specialAction1: 'Спец. действие 1',
+    specialAction2: 'Спец. действие 2'
   };
 
   const renderMyCard = (key: keyof PlayerTraits) => {
     const isRevealed = myRevealed?.[key];
     const val = myTraits?.[key];
-    const text = key === 'specialAction' ? (val as any)?.text : key === 'inventory' ? (val as string[])?.[0] : val;
+    const text = (key === 'specialAction1' || key === 'specialAction2') ? (val as any)?.text : val;
     
     return (
       <div key={key} className={`relative flex flex-col p-3 rounded-2xl border min-h-[110px] transition-all overflow-hidden ${isRevealed ? 'bg-bg-app border-accent-color/50' : 'bg-gradient-to-br from-bg-card to-bg-app border-border-color'}`}>
@@ -163,16 +169,16 @@ export const BunkerPlaying: React.FC<Props> = ({ room, currentUserId, onRevealTr
       {/* 3. Main Content: Players Table Grid (100% width) */}
       <div className="w-full flex flex-col gap-4 overflow-hidden relative z-20">
         <div className="bg-bg-card border border-border-color rounded-3xl shadow-soft overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse table-fixed min-w-[700px] md:min-w-0">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
               <thead>
                 <tr>
-                  <th className="w-[15%] p-2 md:p-3 border-b border-border-color bg-bg-app sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">
-                    <span className="text-[9px] md:text-[10px] font-bold text-text-secondary uppercase tracking-wider font-mono">Игрок</span>
+                  <th className="w-[12%] p-1 md:p-2 border-b border-border-color bg-bg-app z-20 shadow-[2px_0_5px_rgba(0,0,0,0.1)] align-bottom">
+                    <span className="text-[8px] md:text-[10px] font-bold text-text-secondary uppercase tracking-wider font-mono">Игрок</span>
                   </th>
                   {ORDERED_TRAITS.map(k => (
-                    <th key={k} className="w-[9.4%] p-2 md:p-3 border-b border-border-color bg-bg-card text-center overflow-hidden">
-                      <span className="text-[8px] md:text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono truncate block" title={traitLabels[k]}>{traitLabels[k]}</span>
+                    <th key={k} className="p-0.5 md:p-1.5 border-b border-border-color bg-bg-card text-center overflow-hidden align-bottom">
+                      <span className="text-[6.5px] sm:text-[7.5px] md:text-[9px] font-bold text-text-secondary uppercase tracking-tighter font-mono break-words leading-[1.1] block" title={traitLabels[k]}>{traitLabels[k]}</span>
                     </th>
                   ))}
                 </tr>
@@ -187,8 +193,8 @@ export const BunkerPlaying: React.FC<Props> = ({ room, currentUserId, onRevealTr
                   return (
                     <tr key={p.id} className={`group ${!p.isAlive ? 'bg-bg-app/50 opacity-60 grayscale' : 'hover:bg-accent-light/5 transition-colors'} ${hasVotedMe ? 'bg-rose-500/5' : ''}`}>
                       
-                      {/* Player Info (Sticky Left) */}
-                      <td className={`p-2 md:p-3 border-b border-border-color sticky left-0 z-10 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.1)] ${!p.isAlive ? 'bg-bg-app' : hasVotedMe ? 'bg-[#1a1012]' : isMe ? 'bg-[#10151a]' : 'bg-bg-card group-hover:bg-[#161a20]'}`}>
+                      {/* Player Info */}
+                      <td className={`p-1 md:p-2 border-b border-border-color transition-colors ${!p.isAlive ? 'bg-bg-app' : hasVotedMe ? 'bg-[#1a1012]' : isMe ? 'bg-[#10151a]' : 'bg-bg-card group-hover:bg-[#161a20]'}`}>
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-1">
                             {p.isAlive ? <User className="w-3 h-3 text-text-secondary shrink-0" /> : <SkullIcon className="w-3 h-3 text-rose-500 shrink-0" />}
@@ -214,7 +220,7 @@ export const BunkerPlaying: React.FC<Props> = ({ room, currentUserId, onRevealTr
                       {ORDERED_TRAITS.map(k => {
                         const isRevealed = pRevealed?.[k];
                         const val = room.traits[p.id]?.[k];
-                        const text = k === 'specialAction' ? (val as any)?.text : k === 'inventory' ? (val as string[])?.[0] : val;
+                        const text = (k === 'specialAction1' || k === 'specialAction2') ? (val as any)?.text : val;
 
                         return (
                           <td key={k} className="p-1 md:p-2 border-b border-border-color text-center align-middle overflow-hidden">

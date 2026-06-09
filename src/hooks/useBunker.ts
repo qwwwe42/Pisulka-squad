@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, arrayUnion, deleteDoc } from 'firebase/firestore';
 import type { BunkerRoom, BunkerUserProfile, PlayerTraits, BunkerRole, BunkerMessage } from '../types/bunker';
 import { generatePlayerTraits, generateGameInfo } from '../utils/bunkerGeneration';
+import { defaultBunkerPools } from '../utils/bunkerDefaultPools';
 import { getOrCreateUserId } from '../context/StreamingContext'; 
 
 const generateRoomCode = () => Math.floor(10000 + Math.random() * 90000).toString();
@@ -139,35 +140,51 @@ export const useBunker = () => {
   const startGame = async () => {
     if (!activeRoom || activeRoom.hostId !== currentUserId) return;
     
+    let pools = defaultBunkerPools;
+    try {
+      const poolsSnap = await getDoc(doc(db, 'bunker_pools', 'base'));
+      if (poolsSnap.exists()) {
+        pools = poolsSnap.data() as any;
+      } else {
+        // Seed default pools if it doesn't exist
+        await setDoc(doc(db, 'bunker_pools', 'base'), defaultBunkerPools);
+      }
+    } catch (e) {
+      console.warn('Failed to load custom bunker pools, using defaults');
+    }
+
     const traits: Record<string, PlayerTraits> = {};
     const revealedTraits: Record<string, Record<keyof PlayerTraits, boolean>> = {};
     
     activeRoom.players.forEach(p => {
-      traits[p.id] = generatePlayerTraits(activeRoom.settings.enabledPacks);
+      traits[p.id] = generatePlayerTraits(pools);
       revealedTraits[p.id] = {
+        gender: false,
+        physique: false,
+        humanTrait: false,
         profession: false,
-        biology: false,
         health: false,
         hobby: false,
         phobia: false,
-        inventory: false,
-        character: false,
-        fact: false,
-        specialAction: false
+        largeInventory: false,
+        backpack: false,
+        additionalInfo: false,
+        specialAction1: false,
+        specialAction2: false
       };
     });
 
-    const info = generateGameInfo(activeRoom.settings.capacity, activeRoom.settings.enabledPacks);
+    const gameInfo = generateGameInfo();
 
     await updateDoc(doc(db, 'bunker_rooms', activeRoom.id), {
       status: 'playing',
       traits,
       revealedTraits,
-      cataclysm: info.cataclysm,
-      bunkerInfo: info.bunkerInfo,
+      cataclysm: gameInfo.cataclysm,
+      bunkerInfo: gameInfo.bunkerInfo,
       'gameState.round': 1,
       'gameState.phase': 'reveal',
-      logs: arrayUnion('Игра началась! Изучите свои карты.')
+      logs: arrayUnion(`Игра началась! Раунд 1: Открытие профессий и фактов.`)
     });
   };
 
@@ -234,15 +251,14 @@ export const useBunker = () => {
   };
 
   const revealTrait = async (traitKey: keyof PlayerTraits) => {
-    if (!activeRoom) return;
+    if (!profile || !activeRoom) return;
+
     const path = `revealedTraits.${currentUserId}.${traitKey}`;
-    
     const val = activeRoom.traits[currentUserId]?.[traitKey];
     let logMsg = '';
-    if (traitKey === 'specialAction') {
+    
+    if (traitKey === 'specialAction1' || traitKey === 'specialAction2') {
       logMsg = `${profile?.nickname} вскрыл спец-возможность: ${(val as any)?.text}`;
-    } else if (traitKey === 'inventory') {
-      logMsg = `${profile?.nickname} вскрыл инвентарь: ${(val as string[])[0]}`;
     } else {
       logMsg = `${profile?.nickname} вскрыл карту [${traitKey}]: ${val}`;
     }
@@ -281,14 +297,15 @@ export const useBunker = () => {
     });
   };
 
-  const leaveRoom = async () => {
-    if (!activeRoom || !profile) {
+  const leaveRoom = async (roomDataToLeave?: BunkerRoom) => {
+    const dataToUse = roomDataToLeave || activeRoom;
+    if (!dataToUse || !profile) {
       setActiveRoom(null);
       return;
     }
     
-    const roomId = activeRoom.id;
-    const currentData = activeRoom;
+    const roomId = dataToUse.id;
+    const currentData = dataToUse;
     setActiveRoom(null); // Сразу очищаем локальный стейт, чтобы UI переключился
 
     try {

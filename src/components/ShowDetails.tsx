@@ -183,7 +183,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
   };
 
   return (
-    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] glass-panel">
       
       {/* Back Button */}
       {!isEpisodeActive && (

@@ -26,15 +26,26 @@ export const BunkerGame: React.FC = () => {
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  const activeRoomRef = React.useRef(activeRoom);
+  React.useEffect(() => {
+    activeRoomRef.current = activeRoom;
+  }, [activeRoom]);
+
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (activeRoom) {
-        leaveRoom();
+      if (activeRoomRef.current) {
+        leaveRoom(activeRoomRef.current);
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [activeRoom, leaveRoom]);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Clean up when the component unmounts (e.g. switching tabs)
+      if (activeRoomRef.current) {
+        leaveRoom(activeRoomRef.current);
+      }
+    };
+  }, []);
 
   if (activeRoom) {
     if (activeRoom.status === 'lobby') {

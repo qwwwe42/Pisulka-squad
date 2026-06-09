@@ -71,7 +71,7 @@ function AppContent() {
           <div 
             className="fixed inset-0 z-[-2] bg-cover bg-center bg-no-repeat transition-all duration-500"
             style={{ 
-              backgroundImage: `url(${backgroundsConfig[activeTab].imageUrl})`,
+              backgroundImage: `url("${backgroundsConfig[activeTab].imageUrl}")`,
               backgroundAttachment: window.innerWidth > 768 ? 'fixed' : 'scroll'
             }}
           />
@@ -94,8 +94,9 @@ function AppContent() {
 
         {/* LEFT SIDEBAR NAVIGATION */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 md:my-4 md:ml-4 md:rounded-3xl border border-border-color bg-bg-card p-6 flex flex-col gap-8 shrink-0 transition-all duration-300 md:translate-x-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] md:shadow-soft ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
+          className={`fixed inset-y-0 left-0 z-50 w-64 md:my-4 md:ml-4 md:rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#141416]/55 backdrop-blur-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.35)] p-4 flex flex-col gap-8 shrink-0 transition-all duration-300 md:translate-x-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] ${
+            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
         >
           {/* Sidebar Close button on mobile */}
           <button
@@ -350,7 +351,7 @@ function AppContent() {
         </aside>
 
         {/* MAIN CONTENT AREA */}
-        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${activeTab === 'minecraft' ? 'minecraft-bg-theme' : ''}`}>
+        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${activeTab === 'minecraft' && !backgroundsConfig['minecraft']?.imageUrl ? 'minecraft-bg-theme' : ''}`}>
 
           {/* MOBILE HEADER */}
           <header className="md:hidden sticky top-0 z-30 h-16 bg-bg-card/90 backdrop-blur-md border-b border-border-color px-6 flex items-center justify-between shrink-0 transition-colors duration-200">

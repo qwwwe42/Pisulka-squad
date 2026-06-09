@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { BunkerRoom, BunkerUserProfile } from '../../types/bunker';
-import { AVAILABLE_PACKS } from '../../utils/bunkerGeneration';
-import { Users, Play, Crown, Copy, Check, LogOut, ShieldAlert, User } from 'lucide-react';
+import { Users, Play, Crown, Copy, Check, LogOut, User } from 'lucide-react';
 import { db } from '../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
@@ -13,7 +12,7 @@ interface Props {
   onStartGame: () => void;
 }
 
-export const BunkerRoomLobby: React.FC<Props> = ({ room, profile, currentUserId, onLeave, onStartGame }) => {
+export const BunkerRoomLobby: React.FC<Props> = ({ room, currentUserId, onLeave, onStartGame }) => {
   const isHost = room.hostId === currentUserId;
   const [copied, setCopied] = useState(false);
 
@@ -23,22 +22,6 @@ export const BunkerRoomLobby: React.FC<Props> = ({ room, profile, currentUserId,
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const togglePack = async (packId: string) => {
-    if (!isHost) return;
-    const isEnabled = room.settings.enabledPacks.includes(packId);
-    let newPacks = [...room.settings.enabledPacks];
-    
-    if (isEnabled) {
-      if (packId === 'base') return; 
-      newPacks = newPacks.filter(id => id !== packId);
-    } else {
-      newPacks.push(packId);
-    }
-
-    await updateDoc(doc(db, 'bunker_rooms', room.id), {
-      'settings.enabledPacks': newPacks
-    });
-  };
 
   const updateCapacity = async (capacity: number) => {
     if (!isHost) return;
@@ -120,38 +103,16 @@ export const BunkerRoomLobby: React.FC<Props> = ({ room, profile, currentUserId,
             </div>
 
             <div className="space-y-2 pt-2">
-              <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider font-mono block">Доступные паки</label>
+              <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider font-mono block">Набор характеристик</label>
               <div className="space-y-2">
-                {AVAILABLE_PACKS.map(pack => {
-                  const isEnabled = room.settings.enabledPacks.includes(pack.id);
-                  const isLocked = pack.requiredRole === 'mvp' && profile?.role !== 'mvp' && isHost;
-                  
-                  return (
-                    <div 
-                      key={pack.id} 
-                      onClick={() => !isLocked && togglePack(pack.id)}
-                      className={`p-3 rounded-xl border transition-all ${!isHost ? 'opacity-80 cursor-default' : isLocked ? 'opacity-50 cursor-not-allowed bg-bg-app border-border-color' : 'cursor-pointer hover:border-accent-color/50'} ${isEnabled ? 'bg-accent-light border-accent-color shadow-soft' : 'bg-bg-card border-border-color'}`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-xs font-bold text-text-primary flex items-center gap-1.5">
-                          {pack.name}
-                          {pack.requiredRole === 'mvp' && <Crown className="w-3 h-3 text-yellow-500" />}
-                        </div>
-                        {isHost && (
-                          <div className={`w-3 h-3 rounded-sm border flex items-center justify-center ${isEnabled ? 'bg-accent-color border-accent-color text-white' : 'border-border-color'}`}>
-                            {isEnabled && <Check className="w-2.5 h-2.5" />}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-[9px] text-text-secondary leading-tight">{pack.description}</div>
-                      {isLocked && (
-                        <div className="text-[9px] text-yellow-500 font-bold mt-1 flex items-center gap-1">
-                          <ShieldAlert className="w-3 h-3" /> Требуется статус MVP
-                        </div>
-                      )}
+                <div className="p-3 rounded-xl border bg-accent-light border-accent-color shadow-soft transition-all">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                      Базовый набор
                     </div>
-                  );
-                })}
+                  </div>
+                  <div className="text-[10px] text-text-secondary leading-snug">Все профессии и болезни из базы.</div>
+                </div>
               </div>
             </div>
           </div>

@@ -582,7 +582,7 @@ export const NewsView: React.FC = () => {
 
   // ── Render general feed layout (Hero, stats, list/grid) ──────────────────
   return (
-    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
+    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] glass-panel">
       
       {/* 1. HERO BANNER & STATS */}
       <div className="relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between shadow-soft">

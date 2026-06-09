@@ -81,7 +81,7 @@ export const MinecraftView: React.FC = () => {
   const players = minecraftConfig.players || DEFAULT_PLAYERS;
 
   return (
-    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] minecraft-view-container">
+    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] minecraft-view-container glass-panel">
       {/* Status Message Toast */}
       {statusMsg && (
         <div className="fixed top-4 right-4 z-50 bg-bg-card border border-emerald-500/30 text-emerald-500 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-soft flex items-center gap-2 animate-[fadeIn_0.15s_ease-out]">

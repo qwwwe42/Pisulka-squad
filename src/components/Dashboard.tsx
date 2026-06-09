@@ -136,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
   });
 
   return (
-    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
+    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] glass-panel">
       
       {/* 1. HERO BANNER & TIMER */}
       {mode === 'home' && (
