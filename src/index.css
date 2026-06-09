@@ -91,6 +91,21 @@ html[data-theme='dark'] {
   --color-purple-650: var(--accent-color);
   --color-purple-600: var(--accent-hover);
 
+  --color-slate-50: var(--color-slate-50);
+  --color-slate-100: var(--color-slate-100);
+  --color-slate-200: var(--color-slate-200);
+  --color-slate-300: var(--color-slate-300);
+  --color-slate-400: var(--color-slate-400);
+  --color-slate-550: var(--color-slate-300);
+  --color-slate-500: var(--color-slate-500);
+  --color-slate-600: var(--color-slate-600);
+  --color-slate-650: var(--color-slate-400);
+  --color-slate-700: var(--color-slate-700);
+  --color-slate-800: var(--color-slate-800);
+  --color-slate-850: var(--color-slate-850);
+  --color-slate-900: var(--color-slate-900);
+  --color-slate-950: var(--color-slate-950);
+
   --shadow-soft: var(--shadow-soft);
   --shadow-hover: var(--shadow-hover);
 }

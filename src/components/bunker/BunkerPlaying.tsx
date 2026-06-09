@@ -98,7 +98,7 @@ export const BunkerPlaying: React.FC<Props> = ({ room, currentUserId, onRevealTr
   };
 
   return (
-    <div className="p-2 sm:p-4 md:p-6 bg-[#1a1a1a]/70 backdrop-blur-md rounded-[1.5rem] shadow-2xl border border-white/5 flex flex-col gap-4 animate-[fadeIn_0.3s_ease-out] relative pb-8">
+    <div className="p-2 sm:p-4 md:p-6 bg-bg-sidebar border border-border-sidebar backdrop-blur-md rounded-[1.5rem] shadow-2xl flex flex-col gap-4 animate-[fadeIn_0.3s_ease-out] relative pb-8">
       
       {/* 1. Top Bar (Sticky) */}
       <div className="bg-bg-card border border-border-color p-4 rounded-3xl shadow-soft sticky top-4 z-40 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -194,7 +194,7 @@ export const BunkerPlaying: React.FC<Props> = ({ room, currentUserId, onRevealTr
                     <tr key={p.id} className={`group ${!p.isAlive ? 'bg-bg-app/50 opacity-60 grayscale' : 'hover:bg-accent-light/5 transition-colors'} ${hasVotedMe ? 'bg-rose-500/5' : ''}`}>
                       
                       {/* Player Info */}
-                      <td className={`p-1 md:p-2 border-b border-border-color transition-colors ${!p.isAlive ? 'bg-bg-app' : hasVotedMe ? 'bg-[#1a1012]' : isMe ? 'bg-[#10151a]' : 'bg-bg-card group-hover:bg-[#161a20]'}`}>
+                      <td className={`p-1 md:p-2 border-b border-border-color transition-colors ${!p.isAlive ? 'bg-bg-app' : hasVotedMe ? 'bg-rose-500/15' : isMe ? 'bg-accent-light' : 'bg-bg-card group-hover:bg-accent-light'}`}>
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-1">
                             {p.isAlive ? <User className="w-3 h-3 text-text-secondary shrink-0" /> : <SkullIcon className="w-3 h-3 text-rose-500 shrink-0" />}

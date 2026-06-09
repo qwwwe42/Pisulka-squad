@@ -115,18 +115,18 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
         <div 
-          className="w-full max-w-md bg-[#0f1012] border border-[#24262c] rounded-lg p-5 space-y-5 shadow-2xl"
+          className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-lg p-5 space-y-5 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#24262c] pb-3">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
-              <Calendar className="w-4 h-4 text-[#bc8cff]" />
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <Calendar className="w-4 h-4 text-purple-400" />
               <span>LINKED_TASK_SPEC</span>
             </h3>
             <button 
               onClick={onClose}
-              className="text-[#8b949e] hover:text-white transition-colors"
+              className="text-slate-400 hover:text-slate-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -134,19 +134,19 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
 
           {/* Details */}
           <div className="space-y-4 text-xs">
-            <div className="p-3 bg-[#17181c] border border-[#24262c] rounded space-y-2">
-              <div className="flex items-center justify-between text-[10px] text-[#8b949e] font-mono">
+            <div className="p-3 bg-slate-900 border border-slate-800 rounded space-y-2">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
                 <span>КУРС: {linkedCourseName}</span>
-                <span className="text-[#d29922]">Срок: {eventToEdit.startDateTime.split('T')[0].split('-').reverse().slice(0, 2).join('.')}</span>
+                <span className="text-amber-500">Срок: {eventToEdit.startDateTime.split('T')[0].split('-').reverse().slice(0, 2).join('.')}</span>
               </div>
-              <h4 className="text-sm font-bold text-white leading-snug">
+              <h4 className="text-sm font-bold text-slate-100 leading-snug">
                 {cleanTitle}
               </h4>
             </div>
 
             {/* Task completion toggle */}
-            <div className="p-3 bg-[#17181c] border border-[#24262c] rounded flex items-center justify-between">
-              <span className="text-[#8b949e] font-semibold">Статус выполнения:</span>
+            <div className="p-3 bg-slate-900 border border-slate-800 rounded flex items-center justify-between">
+              <span className="text-slate-400 font-semibold">Статус выполнения:</span>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input 
                   type="checkbox"
@@ -156,24 +156,24 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
                       toggleTask(linkedCourseId, linkedTaskId);
                     }
                   }}
-                  className="rounded border-[#30363d] bg-slate-900 text-[#58a6ff] focus:ring-[#58a6ff]/50 w-4 h-4 cursor-pointer"
+                  className="rounded border-slate-700 bg-slate-900 text-accent-color focus:ring-accent-color/50 w-4 h-4 cursor-pointer"
                 />
-                <span className={`font-mono text-[11px] font-bold ${isTaskDone ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                <span className={`font-mono text-[11px] font-bold ${isTaskDone ? 'text-emerald-500' : 'text-rose-500'}`}>
                   {isTaskDone ? 'ВЫПОЛНЕНО' : 'НЕ ВЫПОЛНЕНО'}
                 </span>
               </label>
             </div>
 
-            <p className="text-[10px] text-[#535962] leading-relaxed">
+            <p className="text-[10px] text-slate-500 leading-relaxed">
               💡 Это событие привязано к задаче курса. Вы можете отметить её выполнение прямо здесь. Чтобы переименовать задачу или изменить срок, перейдите в свойства соответствующего курса в левом сайдбаре.
             </p>
           </div>
 
           {/* Footer actions */}
-          <div className="flex items-center justify-end pt-3 border-t border-[#24262c]">
+          <div className="flex items-center justify-end pt-3 border-t border-slate-800">
             <button
               onClick={onClose}
-              className="px-4 py-1.5 rounded bg-[#21262d] border border-[#30363d] text-white hover:bg-[#30363d] text-xs font-semibold transition-colors"
+              className="px-4 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-slate-100 text-xs font-semibold transition-colors"
             >
               Закрыть
             </button>
@@ -187,25 +187,25 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
       <div 
-        className="w-full max-w-md bg-[#0f1012] border border-[#24262c] rounded-lg p-5 space-y-5 shadow-2xl"
+        className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-lg p-5 space-y-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#24262c] pb-3">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
-            <Calendar className="w-4 h-4 text-[#58a6ff]" />
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+            <Calendar className="w-4 h-4 text-accent-color" />
             <span>{eventToEdit ? 'EDIT_EVENT_SPEC' : 'CREATE_EVENT_SPEC'}</span>
           </h3>
           <button 
             onClick={onClose}
-            className="text-[#8b949e] hover:text-white transition-colors"
+            className="text-slate-400 hover:text-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-2.5 rounded bg-[#f85149]/10 border border-[#f85149]/30 text-[#f85149] text-xs flex items-center gap-1.5 font-mono">
+          <div className="p-2.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center gap-1.5 font-mono">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -215,7 +215,7 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* Title */}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-[#8b949e]">Название события *</label>
+            <label className="text-[10px] font-bold text-slate-400">Название события *</label>
             <input 
               type="text"
               placeholder="Название встречи, экзамена..."
@@ -286,7 +286,7 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
 
           {/* Notes */}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-[#8b949e] flex items-center gap-1">
+            <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
               <AlignLeft className="w-3.5 h-3.5" /> Примечание
             </label>
             <textarea
@@ -299,13 +299,13 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-[#24262c]">
+          <div className="flex items-center justify-between pt-3 border-t border-slate-800">
             <div>
               {eventToEdit && (
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="px-3 py-1.5 rounded bg-[#f85149]/10 border border-[#f85149]/30 text-[#f85149] hover:bg-[#f85149]/20 text-xs font-semibold flex items-center gap-1 transition-colors"
+                  className="px-3 py-1.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-1 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Удалить
                 </button>
@@ -316,13 +316,13 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-1.5 rounded text-xs font-semibold text-[#8b949e] hover:text-white"
+                className="px-3 py-1.5 rounded text-xs font-semibold text-slate-400 hover:text-slate-100"
               >
                 Отмена
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded bg-[#21262d] border border-[#30363d] text-white hover:bg-[#30363d] text-xs font-semibold transition-colors"
+                className="px-4 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-slate-100 text-xs font-semibold transition-colors"
               >
                 {eventToEdit ? 'Сохранить' : 'Создать'}
               </button>

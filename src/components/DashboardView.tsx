@@ -55,11 +55,11 @@ export const DashboardView: React.FC = () => {
 
   const getEventBadgeClass = (type: string) => {
     switch (type) {
-      case 'Exam': return 'border-[#f85149] text-[#f85149] bg-[#f85149]/5';
-      case 'Deadline': return 'border-[#d29922] text-[#d29922] bg-[#d29922]/5';
-      case 'Meeting': return 'border-[#58a6ff] text-[#58a6ff] bg-[#58a6ff]/5';
-      case 'Homework': return 'border-[#bc8cff] text-[#bc8cff] bg-[#bc8cff]/5';
-      default: return 'border-[#30363d] text-[#8b949e]';
+      case 'Exam': return 'border-rose-500 text-rose-500 bg-rose-500/5';
+      case 'Deadline': return 'border-amber-500 text-amber-500 bg-amber-500/5';
+      case 'Meeting': return 'border-accent-color text-accent-color bg-accent-color/5';
+      case 'Homework': return 'border-purple-400 text-purple-400 bg-purple-400/5';
+      default: return 'border-slate-700 text-slate-400';
     }
   };
 
@@ -67,15 +67,15 @@ export const DashboardView: React.FC = () => {
     <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
       
       {/* Banner */}
-      <div className="p-5 bg-[#0f1012] border border-[#24262c] rounded-lg space-y-3">
-        <div className="flex items-center gap-2 text-[#8b949e] font-mono text-[11px]">
-          <Terminal className="w-3.5 h-3.5 text-[#58a6ff]" />
+      <div className="p-5 bg-slate-950 border border-slate-800 rounded-lg space-y-3">
+        <div className="flex items-center gap-2 text-slate-400 font-mono text-[11px]">
+          <Terminal className="w-3.5 h-3.5 text-accent-color" />
           <span>STUDY_PLANNER_SYSTEM_SHELL_INIT_SUCCESS</span>
         </div>
-        <h2 className="text-xl font-bold text-white tracking-wide">
+        <h2 className="text-xl font-bold text-slate-100 tracking-wide">
           Панель мониторинга прогресса
         </h2>
-        <p className="text-xs text-[#8b949e] max-w-2xl leading-relaxed">
+        <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
           Добро пожаловать в пульт управления обучением. Здесь выводится статус всех ваших активных курсов, расписание дедлайнов на ближайшие 7 дней и текущие задачи.
         </p>
       </div>
@@ -84,39 +84,39 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         
         {/* Stat 1 */}
-        <div className="p-4 bg-[#0f1012] border border-[#24262c] rounded-lg flex items-center justify-between">
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b949e]">Активные курсы</p>
-            <h3 className="text-xl font-bold font-mono text-white">{activeCoursesCount}</h3>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Активные курсы</p>
+            <h3 className="text-xl font-bold font-mono text-slate-100">{activeCoursesCount}</h3>
           </div>
-          <BookOpen className="w-5 h-5 text-[#58a6ff] opacity-80" />
+          <BookOpen className="w-5 h-5 text-accent-color opacity-80" />
         </div>
 
         {/* Stat 2 */}
-        <div className="p-4 bg-[#0f1012] border border-[#24262c] rounded-lg flex items-center justify-between">
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b949e]">Завершенные курсы</p>
-            <h3 className="text-xl font-bold font-mono text-[#3fb950]">{completedCourses.length}</h3>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Завершенные курсы</p>
+            <h3 className="text-xl font-bold font-mono text-emerald-500">{completedCourses.length}</h3>
           </div>
-          <Award className="w-5 h-5 text-[#3fb950] opacity-80" />
+          <Award className="w-5 h-5 text-emerald-500 opacity-80" />
         </div>
 
         {/* Stat 3 */}
-        <div className="p-4 bg-[#0f1012] border border-[#24262c] rounded-lg flex items-center justify-between">
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b949e]">Выполнение задач</p>
-            <h3 className="text-xl font-bold font-mono text-[#bc8cff]">{overallTaskProgress}%</h3>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Выполнение задач</p>
+            <h3 className="text-xl font-bold font-mono text-purple-400">{overallTaskProgress}%</h3>
           </div>
-          <CheckSquare className="w-5 h-5 text-[#bc8cff] opacity-80" />
+          <CheckSquare className="w-5 h-5 text-purple-400 opacity-80" />
         </div>
 
         {/* Stat 4 */}
-        <div className="p-4 bg-[#0f1012] border border-[#24262c] rounded-lg flex items-center justify-between">
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b949e]">Пройдено времени</p>
-            <h3 className="text-xl font-bold font-mono text-[#d29922]">{avgTimeProgress}%</h3>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Пройдено времени</p>
+            <h3 className="text-xl font-bold font-mono text-amber-500">{avgTimeProgress}%</h3>
           </div>
-          <Clock className="w-5 h-5 text-[#d29922] opacity-80" />
+          <Clock className="w-5 h-5 text-amber-500 opacity-80" />
         </div>
       </div>
 
@@ -124,44 +124,44 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Left column: Сегодня */}
-        <div className="p-5 bg-[#0f1012] border border-[#24262c] rounded-lg space-y-4">
-          <div className="pb-3 border-b border-[#24262c] flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#58a6ff] animate-pulse" />
+        <div className="p-5 bg-slate-950 border border-slate-800 rounded-lg space-y-4">
+          <div className="pb-3 border-b border-slate-800 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-accent-color animate-pulse" />
               Сегодня ({TODAY_STR.split('-').reverse().join('.')})
             </h3>
-            <span className="text-[10px] font-mono text-[#8b949e]">LOG_STATE</span>
+            <span className="text-[10px] font-mono text-slate-400">LOG_STATE</span>
           </div>
 
           {/* Today's Events */}
           <div className="space-y-2.5">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#8b949e]">События и встречи</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">События и встречи</h4>
             {todayEvents.length > 0 ? (
               <div className="space-y-2">
                 {todayEvents.map(event => (
                   <div 
                     key={event.id}
-                    className="p-3 bg-[#17181c] border border-[#24262c] rounded flex items-center justify-between gap-3 text-xs"
+                    className="p-3 bg-slate-900 border border-slate-800 rounded flex items-center justify-between gap-3 text-xs"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${getEventBadgeClass(event.type)}`}>
                           {event.type}
                         </span>
-                        <span className="text-[10px] text-[#8b949e] font-mono">
+                        <span className="text-[10px] text-slate-400 font-mono">
                           {event.startDateTime.split('T')[1]} - {event.endDateTime.split('T')[1]}
                         </span>
                       </div>
-                      <p className="font-semibold text-white">{event.title}</p>
+                      <p className="font-semibold text-slate-100">{event.title}</p>
                       {event.location && (
-                        <p className="text-[10px] text-[#8b949e]">Локация: {event.location}</p>
+                        <p className="text-[10px] text-slate-400">Локация: {event.location}</p>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-3 border border-dashed border-[#24262c] text-center text-[#8b949e] text-xs rounded">
+              <div className="p-3 border border-dashed border-slate-800 text-center text-slate-400 text-xs rounded">
                 Событий на сегодня нет
               </div>
             )}
@@ -169,28 +169,28 @@ export const DashboardView: React.FC = () => {
 
           {/* Today's Tasks */}
           <div className="space-y-2.5">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#8b949e]">Ближайшие задачи (Чек-лист)</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ближайшие задачи (Чек-лист)</h4>
             {quickTasks.length > 0 ? (
               <div className="space-y-1.5">
                 {quickTasks.map(task => (
                   <div 
                     key={task.id} 
-                    className="flex items-center justify-between p-3 bg-[#17181c] border border-[#24262c] rounded hover:border-[#30363d] transition-colors text-xs"
+                    className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded hover:border-slate-700 transition-colors text-xs"
                   >
                     <label className="flex items-center gap-3.5 cursor-pointer group select-none">
                       <input 
                         type="checkbox"
                         checked={task.done}
                         onChange={() => toggleTask(task.courseId, task.id)}
-                        className="rounded border-[#30363d] bg-slate-900 text-[#58a6ff] focus:ring-[#58a6ff]/50 w-4 h-4 cursor-pointer"
+                        className="rounded border-slate-700 bg-slate-900 text-accent-color focus:ring-accent-color/50 w-4 h-4 cursor-pointer"
                       />
                       <div>
-                        <p className="text-white group-hover:text-[#58a6ff] transition-colors">{task.text}</p>
-                        <span className="text-[10px] text-[#8b949e] font-mono">{task.courseTitle}</span>
+                        <p className="text-slate-100 group-hover:text-accent-color transition-colors">{task.text}</p>
+                        <span className="text-[10px] text-slate-400 font-mono">{task.courseTitle}</span>
                       </div>
                     </label>
                     {task.dueDate && (
-                      <span className="text-[10px] font-mono bg-slate-950 border border-[#24262c] px-2 py-0.5 rounded text-[#8b949e] shrink-0">
+                      <span className="text-[10px] font-mono bg-slate-950 border border-slate-800 px-2 py-0.5 rounded text-slate-400 shrink-0">
                         до {task.dueDate.split('-').reverse().slice(0, 2).join('.')}
                       </span>
                     )}
@@ -198,7 +198,7 @@ export const DashboardView: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="p-3 border border-dashed border-[#24262c] text-center text-[#8b949e] text-xs rounded">
+              <div className="p-3 border border-dashed border-slate-800 text-center text-slate-400 text-xs rounded">
                 Нет невыполненных задач
               </div>
             )}
@@ -206,18 +206,18 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Right column: График на неделю */}
-        <div className="p-5 bg-[#0f1012] border border-[#24262c] rounded-lg space-y-4">
-          <div className="pb-3 border-b border-[#24262c] flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <CalendarRange className="w-4.5 h-4.5 text-[#bc8cff]" />
+        <div className="p-5 bg-slate-950 border border-slate-800 rounded-lg space-y-4">
+          <div className="pb-3 border-b border-slate-800 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+              <CalendarRange className="w-4.5 h-4.5 text-purple-400" />
               График на 7 дней
             </h3>
-            <span className="text-[10px] font-mono text-[#8b949e]">SCHEDULE_STATE</span>
+            <span className="text-[10px] font-mono text-slate-400">SCHEDULE_STATE</span>
           </div>
 
           <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
             {next7DaysEvents.length > 0 ? (
-              <div className="relative border-l border-[#24262c] pl-4 ml-2 space-y-4">
+              <div className="relative border-l border-slate-800 pl-4 ml-2 space-y-4">
                 {next7DaysEvents.map(event => {
                   const dateObj = new Date(event.startDateTime);
                   const day = dateObj.getDate();
@@ -227,25 +227,25 @@ export const DashboardView: React.FC = () => {
                   return (
                     <div key={event.id} className="relative group text-xs">
                       {/* Dot marker */}
-                      <span className="absolute -left-[20.5px] top-1.5 w-2 h-2 rounded-full bg-[#24262c] border border-slate-950 group-hover:bg-[#58a6ff] transition-colors" />
+                      <span className="absolute -left-[20.5px] top-1.5 w-2 h-2 rounded-full bg-slate-800 border border-slate-950 group-hover:bg-accent-color transition-colors" />
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-[#bc8cff]">
+                          <span className="font-bold text-purple-400">
                             {day} {monthName} ({weekDay})
                           </span>
-                          <span className="text-[10px] text-[#8b949e] font-mono">
+                          <span className="text-[10px] text-slate-400 font-mono">
                             {event.startDateTime.split('T')[1] || '00:00'}
                           </span>
                           <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold border uppercase tracking-wider ${getEventBadgeClass(event.type)}`}>
                             {event.type}
                           </span>
                         </div>
-                        <h4 className="font-semibold text-white group-hover:text-[#58a6ff] transition-colors">
+                        <h4 className="font-semibold text-slate-100 group-hover:text-accent-color transition-colors">
                           {event.title}
                         </h4>
                         {event.notes && (
-                          <p className="text-[11px] text-[#8b949e]">{event.notes}</p>
+                          <p className="text-[11px] text-slate-400">{event.notes}</p>
                         )}
                       </div>
                     </div>
@@ -253,7 +253,7 @@ export const DashboardView: React.FC = () => {
                 })}
               </div>
             ) : (
-              <div className="p-8 border border-dashed border-[#24262c] text-center text-[#8b949e] text-xs rounded py-16">
+              <div className="p-8 border border-dashed border-slate-800 text-center text-slate-400 text-xs rounded py-16">
                 Событий на следующие 7 дней не запланировано
               </div>
             )}

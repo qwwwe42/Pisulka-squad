@@ -43,7 +43,7 @@ export const TaskList: React.FC<TaskListProps> = ({ courseId, tasks }) => {
           />
           <button
             type="submit"
-            className="px-3.5 py-1.5 bg-[#21262d] border border-[#30363d] text-white hover:bg-[#30363d] rounded text-xs transition-colors shrink-0 flex items-center justify-center"
+            className="px-3.5 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-slate-200 rounded text-xs transition-colors shrink-0 flex items-center justify-center"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -54,36 +54,36 @@ export const TaskList: React.FC<TaskListProps> = ({ courseId, tasks }) => {
       <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
         {tasks.length > 0 ? (
           tasks.map(task => (
-            <div
+             <div
               key={task.id}
               className={`flex items-center justify-between p-2.5 rounded border transition-colors ${
                 task.done
-                  ? 'bg-slate-900/10 border-[#24262c] text-[#8b949e] opacity-60'
-                  : 'bg-[#17181c] border-[#24262c] text-white hover:border-[#30363d]'
+                  ? 'bg-slate-900/10 border-slate-800 text-slate-400 opacity-60'
+                  : 'bg-slate-900 border-slate-800 text-slate-100 hover:border-slate-700'
               }`}
             >
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
+                 <input
                   type="checkbox"
                   checked={task.done}
                   onChange={() => toggleTask(courseId, task.id)}
-                  className="rounded border-[#30363d] bg-slate-900 text-[#58a6ff] focus:ring-[#58a6ff]/50 w-4 h-4 cursor-pointer"
+                  className="rounded border-slate-700 bg-slate-900 text-accent-color focus:ring-accent-color/50 w-4 h-4 cursor-pointer"
                 />
-                <span className={`text-xs ${task.done ? 'line-through text-[#8b949e]' : ''}`}>
+                <span className={`text-xs ${task.done ? 'line-through text-slate-400' : ''}`}>
                   {task.text}
                 </span>
               </label>
 
               <div className="flex items-center gap-2">
                 {task.dueDate && (
-                  <span className="text-[9px] font-mono bg-slate-950 border border-[#24262c] px-2 py-0.5 rounded text-[#8b949e]">
+                  <span className="text-[9px] font-mono bg-slate-950 border border-slate-800 px-2 py-0.5 rounded text-slate-400">
                     до {task.dueDate.split('-').reverse().slice(0, 2).join('.')}
                   </span>
                 )}
                 <button
                   type="button"
                   onClick={() => deleteTask(courseId, task.id)}
-                  className="p-1 rounded text-[#8b949e] hover:text-[#f85149] hover:bg-[#f85149]/10 transition-colors"
+                  className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -91,10 +91,10 @@ export const TaskList: React.FC<TaskListProps> = ({ courseId, tasks }) => {
             </div>
           ))
         ) : (
-          <div className="h-40 rounded border border-dashed border-[#24262c] flex flex-col items-center justify-center text-center p-4 text-[#8b949e] space-y-1.5">
-            <CheckSquare className="w-6 h-6 text-[#535962] animate-pulse" />
+          <div className="h-40 rounded border border-dashed border-slate-800 flex flex-col items-center justify-center text-center p-4 text-slate-400 space-y-1.5">
+            <CheckSquare className="w-6 h-6 text-slate-500 animate-pulse" />
             <p className="text-xs">Задач в этом курсе нет</p>
-            <p className="text-[10px] text-[#535962] max-w-xs">
+            <p className="text-[10px] text-slate-500 max-w-xs">
               Запишите первые шаги обучения в поле ввода выше.
             </p>
           </div>
