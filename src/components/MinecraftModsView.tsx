@@ -1,10 +1,12 @@
 import React from 'react';
 import { useStreaming } from '../context/StreamingContext';
-import { ExternalLink, Puzzle, Box, Download, Clock } from 'lucide-react';
+import { ExternalLink, Puzzle, Box, Download, Clock, Sparkles } from 'lucide-react';
+import { getDirectDownloadUrl } from '../utils/drive';
 
 export const MinecraftModsView: React.FC = () => {
   const { minecraftConfig } = useStreaming();
   const mods = minecraftConfig?.mods || [];
+  const modpack = minecraftConfig?.modpack;
 
   return (
     <div className="minecraft-view-container relative min-h-screen w-full flex flex-col items-center">
@@ -24,6 +26,50 @@ export const MinecraftModsView: React.FC = () => {
             Список рекомендованных модификаций для комфортной игры на сервере.
           </p>
         </div>
+
+        {/* Modpack Banner */}
+        {modpack && (
+          <div className="mb-12 md:mb-16 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+            <div className="bg-gradient-to-br from-purple-900/40 to-black/60 border border-purple-500/30 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl shadow-purple-900/20 relative overflow-hidden flex flex-col md:flex-row items-center gap-8">
+              {/* Decoration */}
+              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <Box className="w-48 h-48 text-purple-400" />
+              </div>
+
+              <div className="flex-1 relative z-10 text-center md:text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-bold uppercase tracking-wider mb-4 border border-purple-500/30">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Официальная сборка
+                </div>
+                <h2 className="text-3xl md:text-4xl font-black text-white mb-3 tracking-tight">
+                  {modpack.title}
+                </h2>
+                <p className="text-slate-300 mb-4 max-w-2xl leading-relaxed whitespace-pre-wrap">
+                  {modpack.description}
+                </p>
+                {modpack.version && (
+                  <div className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
+                    <Puzzle className="w-4 h-4" />
+                    Версия: {modpack.version}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative z-10 w-full md:w-auto shrink-0 flex justify-center">
+                <a
+                  href={getDirectDownloadUrl(modpack.driveUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-purple-600/30 hover:shadow-purple-500/50 hover:-translate-y-1 w-full md:w-auto overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+                  <Download className="w-6 h-6" />
+                  <span>Скачать сборку</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Content */}
         {mods.length === 0 ? (

@@ -51,3 +51,22 @@ export function getGoogleDriveDirectStreamUrl(url: string): string | null {
   if (!fileId) return null;
   return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
+
+/**
+ * Generates the direct download link.
+ * If it's a Google Drive folder, it returns the original URL.
+ * If it's a file, it returns the direct download URL.
+ */
+export function getDirectDownloadUrl(url: string): string {
+  if (!url) return '';
+  // Check if it's a folder link
+  if (url.includes('/folders/') || url.includes('/drive/folders/')) {
+    return url;
+  }
+  const fileId = getGoogleDriveFileId(url);
+  if (fileId) {
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
+  // Fallback
+  return url;
+}

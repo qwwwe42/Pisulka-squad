@@ -78,6 +78,13 @@ export interface MinecraftMod {
   createdAt: number;
 }
 
+export interface Modpack {
+  title: string;
+  description: string;
+  version?: string;
+  driveUrl: string;
+}
+
 export interface MinecraftConfig {
   serverIp: string;
   version: string;
@@ -86,6 +93,7 @@ export interface MinecraftConfig {
   steps: MinecraftStep[];
   players?: MinecraftPlayer[];
   mods?: MinecraftMod[];
+  modpack?: Modpack;
 }
 
 export interface Show {

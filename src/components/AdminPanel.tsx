@@ -174,6 +174,12 @@ export const AdminPanel: React.FC = () => {
   const [isFetchingMod, setIsFetchingMod] = useState(false);
   const [modError, setModError] = useState('');
 
+  // Modpack Form State
+  const [modpackTitle, setModpackTitle] = useState('');
+  const [modpackDesc, setModpackDesc] = useState('');
+  const [modpackVersion, setModpackVersion] = useState('');
+  const [modpackUrl, setModpackUrl] = useState('');
+
   const [prevMinecraftConfig, setPrevMinecraftConfig] = useState(minecraftConfig);
   if (minecraftConfig !== prevMinecraftConfig) {
     setPrevMinecraftConfig(minecraftConfig);
@@ -184,6 +190,13 @@ export const AdminPanel: React.FC = () => {
       setMcRules(minecraftConfig.rules || []);
       setMcSteps(minecraftConfig.steps || []);
       setMcPlayers(minecraftConfig.players || DEFAULT_PLAYERS);
+      
+      if (minecraftConfig.modpack) {
+        setModpackTitle(minecraftConfig.modpack.title);
+        setModpackDesc(minecraftConfig.modpack.description);
+        setModpackVersion(minecraftConfig.modpack.version || '');
+        setModpackUrl(minecraftConfig.modpack.driveUrl);
+      }
     }
   }
 
@@ -201,7 +214,13 @@ export const AdminPanel: React.FC = () => {
         description: mcDescription.trim(),
         rules: mcRules,
         steps: mcSteps,
-        players: mcPlayers
+        players: mcPlayers,
+        modpack: modpackUrl ? {
+          title: modpackTitle.trim() || 'Сборка модов',
+          description: modpackDesc.trim() || 'Наш официальный пак модов',
+          version: modpackVersion.trim() || mcVersion.trim(),
+          driveUrl: modpackUrl.trim()
+        } : undefined
       });
       showStatusMsg('Настройки Майнкрафт сохранены');
     } catch {
@@ -2430,6 +2449,60 @@ export const AdminPanel: React.FC = () => {
                       Игроки не добавлены. Добавьте первого игрока по кнопке выше.
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Modpack Config */}
+              <div className="space-y-3 pt-2 font-sans">
+                <div className="border-b border-slate-800/60 pb-1.5 font-sans">
+                  <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider font-sans">
+                    Единая сборка модов
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Укажите ссылку на Google Drive (архив или папку), чтобы пользователи могли скачать всю сборку одной кнопкой.
+                    Оставьте ссылку пустой, чтобы скрыть блок.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-sans">
+                  <div className="space-y-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ссылка Google Drive</label>
+                    <input 
+                      type="url" 
+                      value={modpackUrl} 
+                      onChange={(e) => setModpackUrl(e.target.value)} 
+                      placeholder="https://drive.google.com/..." 
+                      className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50 font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Название сборки</label>
+                    <input 
+                      type="text" 
+                      value={modpackTitle} 
+                      onChange={(e) => setModpackTitle(e.target.value)} 
+                      placeholder="Например: Сборка Varicose Squad" 
+                      className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50" 
+                    />
+                  </div>
+                  <div className="space-y-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Версия игры / доп. инфо</label>
+                    <input 
+                      type="text" 
+                      value={modpackVersion} 
+                      onChange={(e) => setModpackVersion(e.target.value)} 
+                      placeholder="Например: 1.20.4 (Forge)" 
+                      className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50" 
+                    />
+                  </div>
+                  <div className="sm:col-span-2 space-y-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Краткое описание сборки</label>
+                    <textarea 
+                      value={modpackDesc} 
+                      onChange={(e) => setModpackDesc(e.target.value)} 
+                      placeholder="Опишите, что входит в сборку..." 
+                      className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50 min-h-[50px] resize-none" 
+                    />
+                  </div>
                 </div>
               </div>
 
