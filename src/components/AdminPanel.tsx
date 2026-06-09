@@ -58,7 +58,7 @@ export const AdminPanel: React.FC = () => {
   const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions' | 'backgrounds' | 'bunker_db'>('shows');
 
   // Notification message
-  const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Success Animation State
   const [showCreatedAnimation, setShowCreatedAnimation] = useState<{ visible: boolean; title: string }>({ visible: false, title: '' });
@@ -238,6 +238,9 @@ export const AdminPanel: React.FC = () => {
           return;
         }
       }
+
+      // Show saving state
+      showStatusMsg('Сохранение фона и загрузка файла...', 'info');
 
       newConfig[editingBgTabId] = {
         imageUrl: url,
@@ -492,9 +495,11 @@ export const AdminPanel: React.FC = () => {
   };
 
   // Trigger transient status message
-  const showStatusMsg = (text: string, type: 'success' | 'error' = 'success') => {
+  const showStatusMsg = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     setStatusMsg({ text, type });
-    setTimeout(() => setStatusMsg(null), 4000);
+    if (type !== 'info') {
+      setTimeout(() => setStatusMsg(null), 4000);
+    }
   };
 
   // Create Show Submission
@@ -893,9 +898,19 @@ export const AdminPanel: React.FC = () => {
         {/* Banner notification msg */}
         {statusMsg && (
           <div className={`absolute top-4 right-4 z-20 px-4 py-2 rounded-xl text-xs font-semibold border flex items-center gap-2 shadow-lg animate-[fadeIn_0.15s_ease-out] ${
-            statusMsg.type === 'success' ? 'bg-green-950/25 border-green-800/50 text-green-400' : 'bg-rose-950/25 border-rose-800/50 text-rose-450'
+            statusMsg.type === 'success' 
+              ? 'bg-green-950/25 border-green-800/50 text-green-400' 
+              : statusMsg.type === 'info'
+              ? 'bg-purple-950/25 border-purple-800/50 text-purple-400'
+              : 'bg-rose-950/25 border-rose-800/50 text-rose-450'
           }`}>
-            {statusMsg.type === 'success' ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            {statusMsg.type === 'success' ? (
+              <Check className="w-4 h-4" />
+            ) : statusMsg.type === 'info' ? (
+              <Info className="w-4 h-4 animate-pulse" />
+            ) : (
+              <AlertCircle className="w-4 h-4" />
+            )}
             <span>{statusMsg.text}</span>
           </div>
         )}

@@ -1,8 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem, EmojiItem, ReactionsConfig, BackgroundsConfig } from '../types/streaming';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem, EmojiItem, ReactionsConfig, BackgroundsConfig, TabBackground } from '../types/streaming';
+
 
 interface StreamingContextType {
   shows: Show[];
@@ -544,19 +546,34 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
 
         // Start real-time listener for backgrounds settings
-        const unsubBackgrounds = onSnapshot(doc(db, 'settings', 'backgrounds'), (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as BackgroundsConfig;
-            setBackgroundsConfig(data);
-            localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(data));
-          } else {
-            setDoc(doc(db, 'settings', 'backgrounds'), {}).catch(console.error);
-            setBackgroundsConfig({});
-            localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify({}));
+        const unsubBackgrounds = onSnapshot(collection(db, 'backgrounds'), async (snapshot) => {
+          if (snapshot.empty) {
+            try {
+              const oldDocSnap = await getDocs(collection(db, 'settings'));
+              const backgroundsDoc = oldDocSnap.docs.find(d => d.id === 'backgrounds');
+              if (backgroundsDoc && backgroundsDoc.exists()) {
+                const oldData = backgroundsDoc.data() as BackgroundsConfig;
+                if (Object.keys(oldData).length > 0) {
+                  console.log('Migrating old settings/backgrounds to backgrounds collection...');
+                  await updateBackgroundsConfig(oldData);
+                  return;
+                }
+              }
+            } catch (err) {
+              console.warn('Migration check failed or no old backgrounds doc:', err);
+            }
           }
+
+          const config: BackgroundsConfig = {};
+          snapshot.forEach((docSnap) => {
+            config[docSnap.id] = docSnap.data() as TabBackground;
+          });
+          setBackgroundsConfig(config);
+          localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(config));
         }, (error) => {
           console.warn('Firestore backgrounds config onSnapshot error:', error);
         });
+
 
         unsubscribeRef.current = () => {
           unsub();
@@ -1019,16 +1036,50 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updateBackgroundsConfig = async (config: BackgroundsConfig) => {
-    setBackgroundsConfig(config);
-    localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(config));
+    const resolvedConfig = { ...config };
+    const tabIds = ['home', 'shows', 'news', 'bunker', 'cowatch', 'minecraft', 'gallery'];
 
     if (isFirebaseConnectedRef.current) {
       try {
-        await setDoc(doc(db, 'settings', 'backgrounds'), config);
+        // Clean up the old single backgrounds settings document if it exists
+        try {
+          await deleteDoc(doc(db, 'settings', 'backgrounds'));
+        } catch { /* ignore */ }
+
+        for (const tabId of tabIds) {
+          const bg = config[tabId];
+          if (bg) {
+            let imageUrl = bg.imageUrl;
+            if (imageUrl.startsWith('data:image/')) {
+              try {
+                const storageRef = ref(storage, `backgrounds/${tabId}-${Date.now()}.webp`);
+                await uploadString(storageRef, imageUrl, 'data_url');
+                imageUrl = await getDownloadURL(storageRef);
+                
+                resolvedConfig[tabId] = {
+                  ...bg,
+                  imageUrl
+                };
+              } catch (storageError) {
+                console.warn(`Firebase Storage upload failed for ${tabId}, using Base64 fallback in Firestore`, storageError);
+              }
+            }
+            
+            await setDoc(doc(db, 'backgrounds', tabId), {
+              imageUrl: resolvedConfig[tabId].imageUrl,
+              overlayOpacity: resolvedConfig[tabId].overlayOpacity
+            });
+          } else {
+            await deleteDoc(doc(db, 'backgrounds', tabId));
+          }
+        }
       } catch (e) {
         handleWriteFailure(e);
       }
     }
+
+    setBackgroundsConfig(resolvedConfig);
+    localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(resolvedConfig));
   };
 
   const updateReactionsConfig = async (newConfig: ReactionsConfig) => {
@@ -1183,6 +1234,9 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await deleteDoc(doc(db, 'settings', 'minecraft'));
         await deleteDoc(doc(db, 'settings', 'reactions'));
         await deleteDoc(doc(db, 'settings', 'backgrounds'));
+        for (const tabId of ['home', 'shows', 'news', 'bunker', 'cowatch', 'minecraft', 'gallery']) {
+          await deleteDoc(doc(db, 'backgrounds', tabId));
+        }
       } catch (e) {
         console.error('Firestore clear failed:', e);
       }
