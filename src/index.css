@@ -248,9 +248,15 @@ html[data-theme='dark'] {
 }
 
 /* Dynamic Logo Theme Inversion */
+html[data-theme='dark'] .theme-logo {
+  filter: none;
+}
+
 html:not([data-theme='dark']) .theme-logo,
-html[data-theme='light'] .theme-logo {
-  filter: invert(1);
+html[data-theme='light'] .theme-logo,
+.theme-pink .theme-logo {
+  /* Recolor the bluish/cyanish/greenish logo to the exact accent pink (#D81B60) using a precise CSS filter */
+  filter: brightness(0) saturate(100%) invert(18%) sepia(85%) saturate(5124%) hue-rotate(331deg) brightness(88%) contrast(96%);
 }
 
 /* Minecraft Page Custom Background and Glassmorphism */
