@@ -3,32 +3,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Default is Light theme */
-  --bg-app: #F5F6F8;
-  --bg-card: #FFFFFF;
-  --text-primary: #111114;
-  --text-secondary: #575762;
-  --text-muted: #8E8E9F;
-  --border-color: #E2E4E9;
-  --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.03), 0 4px 12px -2px rgba(0, 0, 0, 0.02);
-  --shadow-hover: 0 20px 40px -5px rgba(0, 0, 0, 0.06), 0 8px 20px -4px rgba(0, 0, 0, 0.04);
-  --accent-color: #7c3aed;
-  --accent-hover: #6d28d9;
-  --accent-light: rgba(124, 58, 237, 0.06);
+  /* Default is Pink theme (formerly Light theme) */
+  --bg-app: #FDE7EF;
+  --bg-card: rgba(255, 240, 245, 0.85);
+  --text-primary: #2D1B24;
+  --text-secondary: #57474C;
+  --text-muted: #8A6B75;
+  --border-color: rgba(216, 27, 96, 0.15);
+  --shadow-soft: 0 10px 30px -5px rgba(216, 27, 96, 0.05), 0 4px 12px -2px rgba(216, 27, 96, 0.03);
+  --shadow-hover: 0 20px 40px -5px rgba(216, 27, 96, 0.1), 0 8px 20px -4px rgba(216, 27, 96, 0.06);
+  --accent-color: #D81B60;
+  --accent-hover: #C2185B;
+  --accent-light: rgba(216, 27, 96, 0.08);
 
-  /* Override slate colors for light theme compatibility in Admin Panel and Modals */
-  --color-slate-50: #111114;
-  --color-slate-100: #111114;
-  --color-slate-200: #212126;
-  --color-slate-300: #3a3a42;
-  --color-slate-400: #575762;
-  --color-slate-500: #8E8E9F;
-  --color-slate-600: #8E8E9F;
-  --color-slate-700: #E2E4E9;
-  --color-slate-800: #E2E4E9;
-  --color-slate-850: #E2E4E9;
-  --color-slate-900: #FFFFFF;
-  --color-slate-950: #F5F6F8;
+  /* Sidebar styling variables */
+  --bg-sidebar: rgba(255, 235, 242, 0.55);
+  --border-sidebar: rgba(216, 27, 96, 0.15);
+  --shadow-sidebar: 0 8px 32px rgba(216, 27, 96, 0.08);
+
+  /* Override slate colors for light (pink) theme compatibility in Admin Panel and Modals */
+  --color-slate-50: #2D1B24;
+  --color-slate-100: #3A2A30;
+  --color-slate-200: #57474C;
+  --color-slate-300: #8A6B75;
+  --color-slate-400: #AC8E97;
+  --color-slate-500: #BFA4AC;
+  --color-slate-600: #CFAEB7;
+  --color-slate-700: rgba(216, 27, 96, 0.15);
+  --color-slate-800: rgba(216, 27, 96, 0.12);
+  --color-slate-850: rgba(216, 27, 96, 0.08);
+  --color-slate-900: #FFF5F8;
+  --color-slate-950: #FDE7EF;
 }
 
 html[data-theme='dark'] {
@@ -44,6 +49,11 @@ html[data-theme='dark'] {
   --accent-color: #a78bfa;
   --accent-hover: #c084fc;
   --accent-light: rgba(167, 139, 250, 0.08);
+
+  /* Sidebar styling variables */
+  --bg-sidebar: rgba(20, 20, 22, 0.55);
+  --border-sidebar: rgba(255, 255, 255, 0.08);
+  --shadow-sidebar: 0 8px 32px rgba(0, 0, 0, 0.35);
 
   /* Restore slate colors for dark theme */
   --color-slate-50: #f8fafc;
@@ -73,6 +83,10 @@ html[data-theme='dark'] {
   --color-accent-color: var(--accent-color);
   --color-accent-hover: var(--accent-hover);
   --color-accent-light: var(--accent-light);
+
+  --color-bg-sidebar: var(--bg-sidebar);
+  --color-border-sidebar: var(--border-sidebar);
+  --shadow-sidebar: var(--shadow-sidebar);
 
   --color-purple-650: var(--accent-color);
   --color-purple-600: var(--accent-hover);
@@ -226,16 +240,37 @@ html[data-theme='light'] .theme-logo {
 
 /* Minecraft Page Custom Background and Glassmorphism */
 .glass-panel {
-  background-color: rgba(20, 20, 22, 0.55) !important;
+  background-color: rgba(255, 235, 242, 0.55) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(216, 27, 96, 0.15) !important;
   border-radius: 32px !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 0 8px 32px rgba(216, 27, 96, 0.08) !important;
   padding: 24px !important;
 }
 
-.minecraft-bg-theme {
+html[data-theme='dark'] .glass-panel {
+  background-color: rgba(20, 20, 22, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Hide background images when pink theme is active */
+.theme-pink .tab-background {
+  display: none !important;
+}
+
+.theme-pink .minecraft-bg-theme {
+  background-image: none !important;
+  background-color: var(--bg-app) !important;
+}
+
+.theme-pink .mods-overlay {
+  display: none !important;
+}
+
+/* Minecraft Page Custom Background and Glassmorphism */
+html[data-theme='dark'] .minecraft-bg-theme {
   background-image: linear-gradient(to top, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.25)), url('/images/minecraft-bg.png') !important;
   background-size: cover !important;
   background-position: center !important;
@@ -244,12 +279,12 @@ html[data-theme='light'] .theme-logo {
 }
 
 @media (max-width: 768px) {
-  .minecraft-bg-theme {
+  html[data-theme='dark'] .minecraft-bg-theme {
     background-attachment: scroll !important;
   }
 }
 
-.minecraft-view-container {
+html[data-theme='dark'] .minecraft-view-container {
   /* Override core theme variables for glassmorphism */
   --bg-card: rgba(15, 23, 42, 0.45);
   --bg-app: rgba(15, 23, 42, 0.25);
@@ -265,10 +300,10 @@ html[data-theme='light'] .theme-logo {
 }
 
 /* Apply text shadow to headers for extra contrast on bright image background */
-.minecraft-view-container h1,
-.minecraft-view-container h2,
-.minecraft-view-container h3,
-.minecraft-view-container h4 {
+html[data-theme='dark'] .minecraft-view-container h1,
+html[data-theme='dark'] .minecraft-view-container h2,
+html[data-theme='dark'] .minecraft-view-container h3,
+html[data-theme='dark'] .minecraft-view-container h4 {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
@@ -284,26 +319,120 @@ html[data-theme='light'] .theme-logo {
 }
 
 /* Adjust contrast for primary accent buttons */
-.minecraft-view-container .bg-accent-color {
+html[data-theme='dark'] .minecraft-view-container .bg-accent-color {
   color: #0f172a !important;
 }
 
-.minecraft-view-container .bg-accent-color:hover {
+html[data-theme='dark'] .minecraft-view-container .bg-accent-color:hover {
   color: #0f172a !important;
 }
 
 /* Custom styles for inputs to ensure they look excellent on glass */
-.minecraft-view-container input,
-.minecraft-view-container textarea {
+html[data-theme='dark'] .minecraft-view-container input,
+html[data-theme='dark'] .minecraft-view-container textarea {
   color: #ffffff !important;
   background-color: rgba(15, 23, 42, 0.6) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-.minecraft-view-container input:focus,
-.minecraft-view-container textarea:focus {
+html[data-theme='dark'] .minecraft-view-container input:focus,
+html[data-theme='dark'] .minecraft-view-container textarea:focus {
   border-color: var(--accent-color) !important;
   box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.3) !important;
+}
+
+/* Minecraft Mods View Pink Theme styling */
+.theme-pink .minecraft-view-container p.text-slate-300 {
+  color: var(--text-secondary) !important;
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  border-color: rgba(216, 27, 96, 0.15) !important;
+}
+
+.theme-pink .modpack-banner {
+  background-image: linear-gradient(to bottom right, rgba(243, 232, 255, 0.6), rgba(255, 240, 245, 0.6)) !important;
+  border-color: rgba(167, 139, 250, 0.3) !important;
+  box-shadow: 0 8px 32px rgba(167, 139, 250, 0.1) !important;
+}
+
+.theme-pink .modpack-banner .text-purple-300 {
+  color: #7c3aed !important;
+  background-color: rgba(167, 139, 250, 0.15) !important;
+  border-color: rgba(167, 139, 250, 0.25) !important;
+}
+
+.theme-pink .modpack-banner h2.text-white {
+  color: var(--text-primary) !important;
+}
+
+.theme-pink .modpack-banner p.text-slate-300 {
+  color: var(--text-secondary) !important;
+}
+
+.theme-pink .modpack-banner .text-slate-400 {
+  color: var(--text-secondary) !important;
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  border-color: rgba(216, 27, 96, 0.15) !important;
+}
+
+.theme-pink .modpack-banner svg {
+  color: #7c3aed !important;
+}
+
+.theme-pink .modpack-banner .absolute.opacity-10 svg {
+  color: rgba(167, 139, 250, 0.2) !important;
+}
+
+.theme-pink .mod-card {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  border-color: rgba(216, 27, 96, 0.12) !important;
+}
+
+.theme-pink .mod-card:hover {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(167, 139, 250, 0.35) !important;
+  box-shadow: 0 10px 30px rgba(167, 139, 250, 0.08) !important;
+}
+
+.theme-pink .mod-card h3.text-white {
+  color: var(--text-primary) !important;
+}
+
+.theme-pink .mod-card h3.text-white:hover {
+  color: #7c3aed !important;
+}
+
+.theme-pink .mod-card .text-slate-400 {
+  color: var(--text-muted) !important;
+  background-color: rgba(216, 27, 96, 0.05) !important;
+}
+
+.theme-pink .mod-card p.text-slate-300 {
+  color: var(--text-secondary) !important;
+}
+
+.theme-pink .mod-card .mod-download-btn {
+  background-color: rgba(167, 139, 250, 0.12) !important;
+  color: #7c3aed !important;
+  border-color: rgba(167, 139, 250, 0.2) !important;
+}
+
+.theme-pink .mod-card .mod-download-btn:hover {
+  background-color: #7c3aed !important;
+  color: #ffffff !important;
+  border-color: #7c3aed !important;
+}
+
+.theme-pink .mod-empty-state {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  border-color: rgba(216, 27, 96, 0.12) !important;
+}
+
+.theme-pink .mod-empty-state h2 {
+  color: var(--text-primary) !important;
+}
+
+.theme-pink .mod-empty-state p {
+  color: var(--text-secondary) !important;
 }
 
 

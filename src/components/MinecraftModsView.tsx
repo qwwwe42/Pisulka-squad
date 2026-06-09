@@ -10,7 +10,7 @@ export const MinecraftModsView: React.FC = () => {
 
   return (
     <div className="minecraft-view-container glass-panel relative min-h-screen w-full flex flex-col items-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0 pointer-events-none mods-overlay" />
       
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-8 py-12 pb-32 animate-fade-in flex flex-col flex-1">
         
@@ -30,7 +30,7 @@ export const MinecraftModsView: React.FC = () => {
         {/* Modpack Banner */}
         {modpack && (
           <div className="mb-12 md:mb-16 animate-slide-up" style={{ animationDelay: '0.05s' }}>
-            <div className="bg-gradient-to-br from-purple-900/40 to-black/60 border border-purple-500/30 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl shadow-purple-900/20 relative overflow-hidden flex flex-col md:flex-row items-center gap-8">
+            <div className="modpack-banner bg-gradient-to-br from-purple-900/40 to-black/60 border border-purple-500/30 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl shadow-purple-900/20 relative overflow-hidden flex flex-col md:flex-row items-center gap-8">
               {/* Decoration */}
               <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                 <Box className="w-48 h-48 text-purple-400" />
@@ -73,7 +73,7 @@ export const MinecraftModsView: React.FC = () => {
 
         {/* Content */}
         {mods.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-black/40 rounded-3xl border border-white/10 backdrop-blur-md">
+          <div className="mod-empty-state flex-1 flex flex-col items-center justify-center text-center p-8 bg-black/40 rounded-3xl border border-white/10 backdrop-blur-md">
             <Box className="w-20 h-20 text-slate-500 mb-6 opacity-50" />
             <h2 className="text-2xl font-bold text-slate-300 mb-2">Модов пока нет</h2>
             <p className="text-slate-400">Список модов пуст. Администратор скоро добавит их.</p>
@@ -83,7 +83,7 @@ export const MinecraftModsView: React.FC = () => {
             {mods.map((mod) => (
               <div 
                 key={mod.id} 
-                className="bg-black/60 rounded-3xl border border-white/10 overflow-hidden flex flex-col hover:border-purple-500/30 hover:bg-black/80 transition-all duration-300 group hover:-translate-y-1 hover:shadow-2xl hover:shadow-purple-500/10 backdrop-blur-md"
+                className="mod-card bg-black/60 rounded-3xl border border-white/10 overflow-hidden flex flex-col hover:border-purple-500/30 hover:bg-black/80 transition-all duration-300 group hover:-translate-y-1 hover:shadow-2xl hover:shadow-purple-500/10 backdrop-blur-md"
               >
                 <div className="p-6 flex flex-col h-full">
                   {/* Mod Header */}
@@ -118,7 +118,7 @@ export const MinecraftModsView: React.FC = () => {
                     href={mod.link} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="w-full mt-auto py-3 px-4 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all group-hover:shadow-lg group-hover:shadow-purple-600/20 border border-purple-500/20"
+                    className="mod-download-btn w-full mt-auto py-3 px-4 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all group-hover:shadow-lg group-hover:shadow-purple-600/20 border border-purple-500/20"
                   >
                     <Download className="w-4 h-4" />
                     <span>Скачать мод</span>

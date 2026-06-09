@@ -40,6 +40,11 @@ function AppContent() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'light') {
+      document.documentElement.classList.add('theme-pink');
+    } else {
+      document.documentElement.classList.remove('theme-pink');
+    }
     localStorage.setItem('penis_ink_theme', theme);
   }, [theme]);
 
@@ -63,11 +68,11 @@ function AppContent() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${backgroundsConfig[activeTab]?.imageUrl ? 'bg-transparent' : 'bg-bg-app'} text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200 relative z-0`}>
+    <div className={`min-h-screen flex flex-col ${(backgroundsConfig[activeTab]?.imageUrl && theme === 'dark') ? 'bg-transparent' : 'bg-bg-app'} text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200 relative z-0`}>
 
       {/* BACKGROUND IMAGE LAYER */}
       {backgroundsConfig[activeTab]?.imageUrl && (
-        <>
+        <div className="tab-background">
           <div 
             className="fixed inset-0 z-[-2] bg-cover bg-center bg-no-repeat transition-all duration-500"
             style={{ 
@@ -79,7 +84,7 @@ function AppContent() {
             className="fixed inset-0 z-[-1] transition-all duration-500 pointer-events-none"
             style={{ backgroundColor: `rgba(0,0,0, ${backgroundsConfig[activeTab].overlayOpacity / 100})` }}
           />
-        </>
+        </div>
       )}
 
       {/* Flex row container that wraps sidebar and main content area */}
@@ -94,7 +99,7 @@ function AppContent() {
 
         {/* LEFT SIDEBAR NAVIGATION */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 md:my-4 md:ml-4 md:rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#141416]/55 backdrop-blur-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.35)] p-4 flex flex-col gap-8 shrink-0 transition-all duration-300 md:translate-x-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 md:my-4 md:ml-4 md:rounded-2xl border border-border-sidebar bg-bg-sidebar backdrop-blur-[12px] shadow-sidebar p-4 flex flex-col gap-8 shrink-0 transition-all duration-300 md:translate-x-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] ${
             isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -333,7 +338,7 @@ function AppContent() {
                 }`}
               >
                 <Sun className="w-3.5 h-3.5" />
-                <span>Светлая</span>
+                <span>Розовая</span>
               </button>
               <button
                 onClick={() => setTheme('dark')}
