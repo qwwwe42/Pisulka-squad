@@ -180,7 +180,8 @@ export const DEFAULT_MINECRAFT_CONFIG: MinecraftConfig = {
     { name: 'Alex', role: 'Игрок', online: true },
     { name: 'Notch', role: 'Легенда', online: true },
     { name: 'miner_49er', role: 'Игрок', online: true }
-  ]
+  ],
+  mods: []
 };
 
 // ======================================================================

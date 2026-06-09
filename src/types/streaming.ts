@@ -68,6 +68,16 @@ export interface MinecraftPlayer {
   online: boolean;
 }
 
+export interface MinecraftMod {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  icon_url?: string;
+  link: string;
+  createdAt: number;
+}
+
 export interface MinecraftConfig {
   serverIp: string;
   version: string;
@@ -75,6 +85,7 @@ export interface MinecraftConfig {
   rules: MinecraftRule[];
   steps: MinecraftStep[];
   players?: MinecraftPlayer[];
+  mods?: MinecraftMod[];
 }
 
 export interface Show {

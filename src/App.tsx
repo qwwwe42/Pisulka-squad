@@ -5,6 +5,7 @@ import { ShowDetails } from './components/ShowDetails';
 import { VideoPlayer } from './components/VideoPlayer';
 import { AdminPanel } from './components/AdminPanel';
 import { MinecraftView } from './components/MinecraftView';
+import { MinecraftModsView } from './components/MinecraftModsView';
 import { GalleryView } from './components/GalleryView';
 import { CoWatchRoom } from './components/CoWatchRoom';
 import { NewsView } from './components/NewsView';
@@ -20,6 +21,7 @@ function AppContent() {
   } = useStreaming();
 
   const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'news' | 'cowatch' | 'gallery' | 'minecraft' | 'admin'>('home');
+  const [minecraftSubTab, setMinecraftSubTab] = useState<'main' | 'mods'>('main');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('penis_ink_admin') === 'true';
@@ -162,20 +164,56 @@ function AppContent() {
             </button>
 
             {/* Майнкрафт */}
-            <button
-              onClick={() => {
-                setActiveTab('minecraft');
-                handleBackToCatalog();
-                setIsMobileMenuOpen(false);
-              }}
-              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'minecraft'
-                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+            <div className="flex flex-col">
+              <button
+                onClick={() => {
+                  setActiveTab('minecraft');
+                  handleBackToCatalog();
+                  // We don't close the mobile menu immediately so the user can select a sub-tab
+                }}
+                className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'minecraft'
+                    ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
+                  }`}
+              >
+                <Gamepad2 className="w-5 h-5" />
+                <span>Майнкрафт</span>
+              </button>
+              
+              {/* Animated Sub-tabs */}
+              <div 
+                className={`flex flex-col gap-1 overflow-hidden transition-all duration-300 ease-in-out pl-4 pr-2 ${
+                  activeTab === 'minecraft' ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
                 }`}
-            >
-              <Gamepad2 className="w-5 h-5" />
-              <span>Майнкрафт</span>
-            </button>
+              >
+                <button
+                  onClick={() => {
+                    setMinecraftSubTab('main');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                    minecraftSubTab === 'main'
+                      ? 'bg-accent-color/10 text-accent-color'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
+                  }`}
+                >
+                  Главная
+                </button>
+                <button
+                  onClick={() => {
+                    setMinecraftSubTab('mods');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                    minecraftSubTab === 'mods'
+                      ? 'bg-accent-color/10 text-accent-color'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
+                  }`}
+                >
+                  Моды
+                </button>
+              </div>
+            </div>
 
             {/* Галерея */}
             <button
@@ -309,8 +347,8 @@ function AppContent() {
               // Render Gallery View
               <GalleryView />
             ) : activeTab === 'minecraft' ? (
-              // Render Minecraft View
-              <MinecraftView />
+              // Render Minecraft View or Mods View
+              minecraftSubTab === 'main' ? <MinecraftView /> : <MinecraftModsView />
             ) : activeTab === 'news' ? (
               // Render News View
               <NewsView />

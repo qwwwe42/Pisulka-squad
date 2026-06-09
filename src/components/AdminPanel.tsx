@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useStreaming } from '../context/StreamingContext';
+import { useStreaming, DEFAULT_MINECRAFT_CONFIG } from '../context/StreamingContext';
 import { 
   Plus, Trash2, Database, AlertCircle, 
   Check, Info, Tv, CheckCircle2, Sparkles,
   Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock,
-  Cloud, CloudOff, X, Smile, ArrowUp, ArrowDown
+  Cloud, CloudOff, X, Smile, ArrowUp, ArrowDown, Box
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode, EmojiItem } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
@@ -168,6 +168,11 @@ export const AdminPanel: React.FC = () => {
   const [mcRules, setMcRules] = useState<{ title: string; description: string }[]>([]);
   const [mcSteps, setMcSteps] = useState<{ title: string; description: string }[]>([]);
   const [mcPlayers, setMcPlayers] = useState<MinecraftPlayer[]>([]);
+  
+  // Mods Form State
+  const [modUrl, setModUrl] = useState('');
+  const [isFetchingMod, setIsFetchingMod] = useState(false);
+  const [modError, setModError] = useState('');
 
   const [prevMinecraftConfig, setPrevMinecraftConfig] = useState(minecraftConfig);
   if (minecraftConfig !== prevMinecraftConfig) {
@@ -190,6 +195,7 @@ export const AdminPanel: React.FC = () => {
     }
     try {
       await updateMinecraftConfig({
+        ...(minecraftConfig || DEFAULT_MINECRAFT_CONFIG),
         serverIp: mcServerIp.trim(),
         version: mcVersion.trim(),
         description: mcDescription.trim(),
@@ -201,6 +207,53 @@ export const AdminPanel: React.FC = () => {
     } catch {
       showStatusMsg('Не удалось сохранить настройки', 'error');
     }
+  };
+
+  const handleFetchAndAddMod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modUrl) return;
+    setIsFetchingMod(true);
+    setModError('');
+    try {
+      const match = modUrl.match(/modrinth\.com\/(?:mod|plugin)\/([^/?]+)/);
+      if (!match) {
+        throw new Error('Некорректная ссылка на Modrinth');
+      }
+      const slug = match[1];
+      const res = await fetch(`https://api.modrinth.com/v2/project/${slug}`);
+      if (!res.ok) {
+        throw new Error('Мод не найден или ошибка API Modrinth');
+      }
+      const data = await res.json();
+      
+      const newMod = {
+        id: Date.now().toString(),
+        slug: data.slug,
+        title: data.title,
+        description: data.description,
+        icon_url: data.icon_url,
+        link: modUrl,
+        createdAt: Date.now()
+      };
+
+      const currentConfig = minecraftConfig || DEFAULT_MINECRAFT_CONFIG;
+      const updatedMods = [...(currentConfig.mods || []), newMod];
+      await updateMinecraftConfig({ ...currentConfig, mods: updatedMods });
+      setModUrl('');
+      showStatusMsg('Мод успешно добавлен!');
+    } catch (err: any) {
+      setModError(err.message);
+    } finally {
+      setIsFetchingMod(false);
+    }
+  };
+
+  const handleDeleteMod = async (modId: string) => {
+    if (!confirm('Удалить мод?')) return;
+    const currentConfig = minecraftConfig || DEFAULT_MINECRAFT_CONFIG;
+    const updatedMods = (currentConfig.mods || []).filter(m => m.id !== modId);
+    await updateMinecraftConfig({ ...currentConfig, mods: updatedMods });
+    showStatusMsg('Мод удален');
   };
 
   const handleSaveNews = async (e: React.FormEvent) => {
@@ -2380,16 +2433,86 @@ export const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit Button for Minecraft Form */}
               <div className="pt-4 flex border-t border-slate-800/60 font-sans">
                 <button 
                   type="submit" 
                   className="px-6 py-2.5 bg-purple-650 hover:bg-purple-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-950/20 cursor-pointer ml-auto active:scale-95 transition-all"
                 >
-                  Сохранить настройки Майнкрафт
+                  Сохранить основные настройки
                 </button>
               </div>
             </form>
+
+            {/* Mods Management Section */}
+            <div className="pt-6 mt-6 border-t border-slate-800/60 space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
+                  Управление модами (Modrinth)
+                </h3>
+                <p className="text-xs text-slate-550 font-sans">
+                  Вставьте ссылку на мод с Modrinth, и система автоматически подгрузит его данные.
+                </p>
+              </div>
+
+              <form onSubmit={handleFetchAndAddMod} className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                <div className="flex-1 w-full space-y-1.5 font-sans">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ссылка на мод (Modrinth) *</label>
+                  <input 
+                    type="url" 
+                    value={modUrl} 
+                    onChange={(e) => setModUrl(e.target.value)} 
+                    placeholder="https://modrinth.com/mod/sodium" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-purple-500/50" 
+                    required 
+                  />
+                  {modError && <p className="text-xs text-rose-500 font-bold mt-1">{modError}</p>}
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isFetchingMod}
+                  className="px-6 py-2.5 h-[38px] bg-purple-650 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-950/20 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  {isFetchingMod ? 'Загрузка...' : 'Добавить мод'}
+                </button>
+              </form>
+
+              {/* List of current mods */}
+              <div className="space-y-3 pt-2 font-sans">
+                <h4 className="text-xs font-bold text-slate-350 uppercase tracking-wider font-sans">Текущие моды ({(minecraftConfig?.mods || []).length})</h4>
+                {(!minecraftConfig?.mods || minecraftConfig.mods.length === 0) ? (
+                  <div className="p-8 text-center bg-slate-900/10 border border-dashed border-slate-800/80 rounded-2xl text-slate-550 text-xs font-sans">
+                    Список модов пуст. Добавьте первый мод выше.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {minecraftConfig.mods.map(mod => (
+                      <div key={mod.id} className="p-3 bg-slate-900/20 border border-slate-900/60 rounded-xl flex items-center gap-4 group font-sans">
+                        {mod.icon_url ? (
+                          <img src={mod.icon_url} alt={mod.title} className="w-10 h-10 rounded-lg object-cover bg-slate-950 shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-slate-950 flex items-center justify-center text-slate-500 shrink-0">
+                            <Box className="w-5 h-5" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-slate-200 text-sm truncate">{mod.title}</h4>
+                          <p className="text-[10px] text-slate-500 truncate mt-0.5">{mod.link}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMod(mod.id)}
+                          className="p-1.5 shrink-0 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-500 hover:border-rose-900/40 transition-all cursor-pointer font-sans"
+                          title="Удалить мод"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
