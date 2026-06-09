@@ -226,7 +226,7 @@ html[data-theme='light'] .theme-logo {
 
 /* Minecraft Page Custom Background and Glassmorphism */
 .minecraft-bg-theme {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/images/minecraft-bg.png') !important;
+  background-image: linear-gradient(to top, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.25)), url('/images/minecraft-bg.png') !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
@@ -252,6 +252,14 @@ html[data-theme='light'] .theme-logo {
   --accent-light: rgba(192, 132, 252, 0.15);
   
   color: #ffffff;
+}
+
+/* Apply text shadow to headers for extra contrast on bright image background */
+.minecraft-view-container h1,
+.minecraft-view-container h2,
+.minecraft-view-container h3,
+.minecraft-view-container h4 {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Apply backdrop blur to glass panels */
