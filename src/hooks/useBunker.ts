@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, arrayUnion, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, arrayUnion, deleteDoc, getDocs } from 'firebase/firestore';
 import type { BunkerRoom, BunkerUserProfile, PlayerTraits, BunkerRole, BunkerMessage } from '../types/bunker';
 import { generatePlayerTraits, generateGameInfo } from '../utils/bunkerGeneration';
 import { defaultBunkerPools } from '../utils/bunkerDefaultPools';
@@ -56,6 +56,13 @@ export const useBunker = () => {
           return;
         }
 
+        // Hide room from lobby if host heartbeat is expired (longer than 50 seconds)
+        const hostHb = roomData.heartbeats?.[roomData.hostId];
+        const isHostActive = hostHb && (now - hostHb < 50000);
+        if (roomData.hostId && !isHostActive) {
+          return;
+        }
+
         rooms.push(roomData);
       });
       setRoomsList(rooms);
@@ -92,7 +99,11 @@ export const useBunker = () => {
       },
       chat: [],
       logs: [`Комната создана ведущим ${profile.nickname}`],
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      heartbeats: {
+        [currentUserId]: Date.now()
+      },
+      lastActivityAt: Date.now()
     };
 
     await setDoc(roomRef, newRoom);
@@ -120,7 +131,9 @@ export const useBunker = () => {
           role: profile.role,
           isAlive: true,
           hasVoted: false
-        })
+        }),
+        [`heartbeats.${currentUserId}`]: Date.now(),
+        lastActivityAt: Date.now()
       });
     }
     subscribeToRoom(roomId);
@@ -312,23 +325,140 @@ export const useBunker = () => {
       const roomRef = doc(db, 'bunker_rooms', roomId);
       const newPlayers = currentData.players.filter(p => p.id !== currentUserId);
       
-      if (newPlayers.length === 0) {
+      if (newPlayers.length === 0 || currentData.hostId === currentUserId) {
         // Не ждем ответа (чтобы успело отработать в beforeunload)
         deleteDoc(roomRef).catch(() => {});
       } else {
-        const updates: any = { players: newPlayers };
-        if (currentData.hostId === currentUserId) {
-          updates.hostId = newPlayers[0].id;
-          updates.logs = arrayUnion(`Ведущий покинул игру. Новым ведущим становится ${newPlayers[0].nickname}.`);
-        } else {
-          updates.logs = arrayUnion(`Игрок ${profile.nickname} покинул игру.`);
-        }
+        const updates: any = { 
+          players: newPlayers,
+          [`heartbeats.${currentUserId}`]: null
+        };
+        updates.logs = arrayUnion(`Игрок ${profile.nickname} покинул игру.`);
         updateDoc(roomRef, updates).catch(() => {});
       }
     } catch (e) {
       console.error('Ошибка при выходе из комнаты:', e);
     }
   };
+
+  // 1. Loop to update current user's heartbeat in the active room
+  useEffect(() => {
+    if (!activeRoom) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        const roomRef = doc(db, 'bunker_rooms', activeRoom.id);
+        await updateDoc(roomRef, {
+          [`heartbeats.${currentUserId}`]: Date.now(),
+          lastActivityAt: Date.now()
+        });
+      } catch (e) {
+        console.warn('Failed to update player heartbeat:', e);
+      }
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 20000); // every 20 seconds
+    return () => clearInterval(interval);
+  }, [activeRoom?.id, currentUserId]);
+
+  // 2. Room membership check: remove expired players (longer than 50 seconds)
+  useEffect(() => {
+    if (!activeRoom) return;
+
+    const now = Date.now();
+    const activePlayers = activeRoom.players.filter(p => {
+      const hb = activeRoom.heartbeats?.[p.id];
+      return hb && (now - hb < 50000);
+    });
+
+    // We only clean up if we are the first active player in the players list,
+    // which prevents write collisions.
+    const isFirstActive = activePlayers[0]?.id === currentUserId;
+    if (!isFirstActive) return;
+
+    const expiredPlayers = activeRoom.players.filter(p => {
+      const hb = activeRoom.heartbeats?.[p.id];
+      return !hb || (now - hb >= 50000);
+    });
+
+    if (expiredPlayers.length === 0) return;
+
+    const cleanup = async () => {
+      try {
+        const roomRef = doc(db, 'bunker_rooms', activeRoom.id);
+        const remainingPlayers = activeRoom.players.filter(p => !expiredPlayers.some(ep => ep.id === p.id));
+
+        if (remainingPlayers.length === 0) {
+          await deleteDoc(roomRef);
+          setActiveRoom(null);
+        } else {
+          // If the host is timed out, delete the room immediately
+          const isHostExpired = expiredPlayers.some(ep => ep.id === activeRoom.hostId);
+          if (isHostExpired) {
+            await deleteDoc(roomRef);
+            setActiveRoom(null);
+            return;
+          }
+
+          const updates: Record<string, any> = {
+            players: remainingPlayers
+          };
+          expiredPlayers.forEach(ep => {
+            updates[`heartbeats.${ep.id}`] = null;
+          });
+          updates.logs = arrayUnion(
+            ...expiredPlayers.map(ep => `Игрок ${ep.nickname} отключился по таймауту.`)
+          );
+
+          await updateDoc(roomRef, updates);
+        }
+      } catch (e) {
+        console.error('Error cleaning up expired players:', e);
+      }
+    };
+
+    const timer = setTimeout(cleanup, 2000);
+    return () => clearTimeout(timer);
+  }, [activeRoom, currentUserId]);
+
+  // 3. Background cleaner for dead/abandoned rooms (runs on every client in lobby/game)
+  useEffect(() => {
+    const runCleaner = async () => {
+      try {
+        const roomsSnap = await getDocs(collection(db, 'bunker_rooms'));
+        const now = Date.now();
+        const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+        const HEARTBEAT_TIMEOUT = 60000; // 1 minute
+
+        roomsSnap.forEach(async (docSnap) => {
+          const room = docSnap.data() as BunkerRoom;
+          let shouldDelete = false;
+
+          if (now - room.createdAt > TWELVE_HOURS) {
+            shouldDelete = true;
+          } else if (!room.players || room.players.length === 0) {
+            shouldDelete = true;
+          } else {
+            const hostHb = room.heartbeats?.[room.hostId];
+            if (!hostHb || (now - hostHb > HEARTBEAT_TIMEOUT)) {
+              shouldDelete = true;
+            }
+          }
+
+          if (shouldDelete) {
+            await deleteDoc(doc(db, 'bunker_rooms', room.id)).catch(() => {});
+          }
+        });
+      } catch (e) {
+        console.warn('Background cleaner run failed:', e);
+      }
+    };
+
+    runCleaner();
+    const interval = setInterval(runCleaner, 60000); // run every 1 minute
+    return () => clearInterval(interval);
+  }, []);
 
   return {
     currentUserId,

@@ -107,6 +107,8 @@ export interface BunkerRoom {
   chat: BunkerMessage[];
   logs: string[];
   createdAt: number;
+  heartbeats?: Record<string, number>;
+  lastActivityAt?: number;
 }
 
 export interface PackItem {
