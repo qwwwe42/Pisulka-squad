@@ -4,7 +4,8 @@ import {
   Plus, Trash2, Database, AlertCircle, 
   Check, Info, Tv, CheckCircle2, Sparkles,
   Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock,
-  Cloud, CloudOff, X, Smile, ArrowUp, ArrowDown, Box, Image as ImageIcon
+  Cloud, CloudOff, X, Smile, ArrowUp, ArrowDown, Box, Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode, EmojiItem } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
@@ -186,6 +187,7 @@ export const AdminPanel: React.FC = () => {
   const [editingBgTabId, setEditingBgTabId] = useState<string>('home');
   const [bgImageUrl, setBgImageUrl] = useState('');
   const [bgOverlay, setBgOverlay] = useState(80);
+  const [isSavingBg, setIsSavingBg] = useState(false);
 
   const TABS_FOR_BG = [
     { id: 'home', label: 'Главная' },
@@ -213,6 +215,9 @@ export const AdminPanel: React.FC = () => {
 
   const handleSaveBackground = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingBg) return;
+
+    setIsSavingBg(true);
     try {
       const url = bgImageUrl.trim();
       const newConfig = { ...backgroundsConfig };
@@ -228,13 +233,23 @@ export const AdminPanel: React.FC = () => {
       if (url.startsWith('http')) {
         try {
           await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+              reject(new Error('Timeout loading image'));
+            }, 15000); // 15s timeout
+            
             const img = new Image();
-            img.onload = resolve;
-            img.onerror = reject;
+            img.onload = () => {
+              clearTimeout(timer);
+              resolve(true);
+            };
+            img.onerror = () => {
+              clearTimeout(timer);
+              reject(new Error('Image failed to load'));
+            };
             img.src = url;
           });
         } catch {
-          showStatusMsg('Ошибка: картинка недоступна или битая ссылка', 'error');
+          showStatusMsg('Ошибка: картинка недоступна, битая ссылка или таймаут загрузки', 'error');
           return;
         }
       }
@@ -252,11 +267,16 @@ export const AdminPanel: React.FC = () => {
     } catch (err) {
       console.error(err);
       showStatusMsg('Системная ошибка при сохранении фона', 'error');
+    } finally {
+      setIsSavingBg(false);
     }
   };
 
   const handleDeleteBackground = async () => {
     if (!confirm('Сбросить фон для этой вкладки?')) return;
+    if (isSavingBg) return;
+
+    setIsSavingBg(true);
     try {
       const newConfig = { ...backgroundsConfig };
       delete newConfig[editingBgTabId];
@@ -266,6 +286,8 @@ export const AdminPanel: React.FC = () => {
       setBgOverlay(80);
     } catch {
       showStatusMsg('Ошибка при сбросе', 'error');
+    } finally {
+      setIsSavingBg(false);
     }
   };
 
@@ -2861,7 +2883,8 @@ export const AdminPanel: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setEditingBgTabId(tab.id)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap cursor-pointer ${
+                  disabled={isSavingBg}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     editingBgTabId === tab.id
                       ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
                       : 'bg-slate-900 text-slate-500 hover:text-slate-300 border border-transparent'
@@ -2888,13 +2911,15 @@ export const AdminPanel: React.FC = () => {
                         type="text"
                         value={bgImageUrl}
                         onChange={(e) => setBgImageUrl(e.target.value)}
+                        disabled={isSavingBg}
                         placeholder="https://... или выберите файл"
-                        className="flex-1 bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                        className="flex-1 bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50 disabled:opacity-55"
                       />
                       <ImageUploader 
                         onImageUploaded={(base64) => setBgImageUrl(base64)}
                         maxWidth={1920}
                         className="shrink-0"
+                        disabled={isSavingBg}
                       />
                     </div>
                   </div>
@@ -2910,7 +2935,8 @@ export const AdminPanel: React.FC = () => {
                       max="100"
                       value={bgOverlay}
                       onChange={(e) => setBgOverlay(Number(e.target.value))}
-                      className="w-full cursor-pointer accent-purple-500"
+                      disabled={isSavingBg}
+                      className="w-full cursor-pointer accent-purple-500 disabled:opacity-50"
                     />
                   </div>
 
@@ -2918,16 +2944,24 @@ export const AdminPanel: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleDeleteBackground}
-                      disabled={!backgroundsConfig[editingBgTabId]}
-                      className="px-4 py-2.5 bg-rose-950/20 hover:bg-rose-900/40 border border-rose-900/30 text-rose-400 disabled:opacity-30 rounded-lg text-xs font-semibold flex-1 cursor-pointer transition-all"
+                      disabled={isSavingBg || !backgroundsConfig[editingBgTabId]}
+                      className="px-4 py-2.5 bg-rose-950/20 hover:bg-rose-900/40 border border-rose-900/30 text-rose-400 disabled:opacity-30 rounded-lg text-xs font-semibold flex-1 cursor-pointer transition-all disabled:cursor-not-allowed"
                     >
                       Сбросить
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2.5 bg-purple-650 hover:bg-purple-600 text-white rounded-lg text-xs font-semibold flex-[2] cursor-pointer active:scale-95 transition-all shadow-lg shadow-purple-950/20"
+                      disabled={isSavingBg}
+                      className="px-4 py-2.5 bg-purple-650 hover:bg-purple-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex-[2] cursor-pointer active:scale-95 transition-all shadow-lg shadow-purple-950/20 flex items-center justify-center gap-2 disabled:cursor-not-allowed"
                     >
-                      Сохранить фон
+                      {isSavingBg ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Сохранение...</span>
+                        </>
+                      ) : (
+                        <span>Сохранить фон</span>
+                      )}
                     </button>
                   </div>
                 </div>

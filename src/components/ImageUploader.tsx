@@ -6,12 +6,14 @@ interface ImageUploaderProps {
   onImageUploaded: (base64String: string) => void;
   maxWidth?: number;
   className?: string;
+  disabled?: boolean;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({ 
   onImageUploaded, 
   maxWidth = 1200,
-  className = ""
+  className = "",
+  disabled = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -47,7 +49,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        disabled={isUploading}
+        disabled={isUploading || disabled}
         className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-2 border border-slate-700/50"
       >
         {isUploading ? (

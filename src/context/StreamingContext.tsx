@@ -334,6 +334,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Refs for managing the onSnapshot subscription
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const isFirebaseConnectedRef = useRef(false);
+  const isBackgroundSavingRef = useRef(false);
 
   // Keep the ref in sync with state
   useEffect(() => {
@@ -562,6 +563,26 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             } catch (err) {
               console.warn('Migration check failed or no old backgrounds doc:', err);
             }
+
+            // Seed Firestore backgrounds with local localStorage backgrounds if empty
+            const localConfigStr = localStorage.getItem('penis_ink_backgrounds_config');
+            if (localConfigStr) {
+              try {
+                const localConfig = JSON.parse(localConfigStr) as BackgroundsConfig;
+                if (Object.keys(localConfig).length > 0) {
+                  console.log('Seeding Firestore backgrounds with local localStorage backgrounds...');
+                  await updateBackgroundsConfig(localConfig);
+                  return;
+                }
+              } catch (e) {
+                console.warn('Failed to parse local backgrounds for seeding:', e);
+              }
+            }
+          }
+
+          if (isBackgroundSavingRef.current) {
+            console.log('Skipping background snapshot update because a save is in progress');
+            return;
           }
 
           const config: BackgroundsConfig = {};
@@ -1036,50 +1057,89 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updateBackgroundsConfig = async (config: BackgroundsConfig) => {
+    isBackgroundSavingRef.current = true;
     const resolvedConfig = { ...config };
     const tabIds = ['home', 'shows', 'news', 'bunker', 'cowatch', 'minecraft', 'gallery'];
 
-    if (isFirebaseConnectedRef.current) {
-      try {
+    // Update state and local storage immediately with the tentative config (e.g. including Base64 URL)
+    setBackgroundsConfig(resolvedConfig);
+    localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(resolvedConfig));
+
+    try {
+      if (isFirebaseConnectedRef.current) {
         // Clean up the old single backgrounds settings document if it exists
         try {
           await deleteDoc(doc(db, 'settings', 'backgrounds'));
         } catch { /* ignore */ }
 
+        let needsStateUpdate = false;
+
         for (const tabId of tabIds) {
           const bg = config[tabId];
+          const prevBg = backgroundsConfig[tabId];
+
+          // Skip Firestore operations if the background hasn't changed
+          const isSame = (!bg && !prevBg) || (bg && prevBg && bg.imageUrl === prevBg.imageUrl && bg.overlayOpacity === prevBg.overlayOpacity);
+          if (isSame) {
+            continue;
+          }
+
           if (bg) {
             let imageUrl = bg.imageUrl;
             if (imageUrl.startsWith('data:image/')) {
               try {
                 const storageRef = ref(storage, `backgrounds/${tabId}-${Date.now()}.webp`);
-                await uploadString(storageRef, imageUrl, 'data_url');
-                imageUrl = await getDownloadURL(storageRef);
+                
+                // Upload with 20s timeout
+                await Promise.race([
+                  uploadString(storageRef, imageUrl, 'data_url'),
+                  new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firebase Storage upload timeout')), 20000))
+                ]);
+                
+                // Get download URL with 10s timeout
+                imageUrl = await Promise.race([
+                  getDownloadURL(storageRef),
+                  new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Firebase Storage getDownloadURL timeout')), 10000))
+                ]);
                 
                 resolvedConfig[tabId] = {
                   ...bg,
                   imageUrl
                 };
+                needsStateUpdate = true;
               } catch (storageError) {
                 console.warn(`Firebase Storage upload failed for ${tabId}, using Base64 fallback in Firestore`, storageError);
               }
             }
             
-            await setDoc(doc(db, 'backgrounds', tabId), {
-              imageUrl: resolvedConfig[tabId].imageUrl,
-              overlayOpacity: resolvedConfig[tabId].overlayOpacity
-            });
+            // Set document in Firestore with 15s timeout
+            await Promise.race([
+              setDoc(doc(db, 'backgrounds', tabId), {
+                imageUrl: resolvedConfig[tabId].imageUrl,
+                overlayOpacity: resolvedConfig[tabId].overlayOpacity
+              }),
+              new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore setDoc timeout')), 15000))
+            ]);
           } else {
-            await deleteDoc(doc(db, 'backgrounds', tabId));
+            // Delete document in Firestore with 15s timeout
+            await Promise.race([
+              deleteDoc(doc(db, 'backgrounds', tabId)),
+              new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore deleteDoc timeout')), 15000))
+            ]);
           }
         }
-      } catch (e) {
-        handleWriteFailure(e);
-      }
-    }
 
-    setBackgroundsConfig(resolvedConfig);
-    localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(resolvedConfig));
+        if (needsStateUpdate) {
+          // Update local state and storage again to replace Base64 URLs with public storage URLs
+          setBackgroundsConfig(resolvedConfig);
+          localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(resolvedConfig));
+        }
+      }
+    } catch (e) {
+      handleWriteFailure(e);
+    } finally {
+      isBackgroundSavingRef.current = false;
+    }
   };
 
   const updateReactionsConfig = async (newConfig: ReactionsConfig) => {
