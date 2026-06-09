@@ -224,3 +224,68 @@ html[data-theme='light'] .theme-logo {
   filter: invert(1);
 }
 
+/* Minecraft Page Custom Background and Glassmorphism */
+.minecraft-bg-theme {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/images/minecraft-bg.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+@media (max-width: 768px) {
+  .minecraft-bg-theme {
+    background-attachment: scroll !important;
+  }
+}
+
+.minecraft-view-container {
+  /* Override core theme variables for glassmorphism */
+  --bg-card: rgba(15, 23, 42, 0.45);
+  --bg-app: rgba(15, 23, 42, 0.25);
+  --border-color: rgba(255, 255, 255, 0.12);
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent-color: #c084fc;
+  --accent-hover: #d8b4fe;
+  --accent-light: rgba(192, 132, 252, 0.15);
+  
+  color: #ffffff;
+}
+
+/* Apply backdrop blur to glass panels */
+.minecraft-view-container .bg-bg-card {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.minecraft-view-container .bg-bg-app {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Adjust contrast for primary accent buttons */
+.minecraft-view-container .bg-accent-color {
+  color: #0f172a !important;
+}
+
+.minecraft-view-container .bg-accent-color:hover {
+  color: #0f172a !important;
+}
+
+/* Custom styles for inputs to ensure they look excellent on glass */
+.minecraft-view-container input,
+.minecraft-view-container textarea {
+  color: #ffffff !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.minecraft-view-container input:focus,
+.minecraft-view-container textarea:focus {
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.3) !important;
+}
+
+

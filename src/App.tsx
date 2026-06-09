@@ -245,7 +245,7 @@ function AppContent() {
         </aside>
 
         {/* MAIN CONTENT AREA */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${activeTab === 'minecraft' ? 'minecraft-bg-theme' : ''}`}>
 
           {/* MOBILE HEADER */}
           <header className="md:hidden sticky top-0 z-30 h-16 bg-bg-card/90 backdrop-blur-md border-b border-border-color px-6 flex items-center justify-between shrink-0 transition-colors duration-200">
