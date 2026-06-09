@@ -198,8 +198,145 @@ const NewsReactions: React.FC<{
   );
 };
 
+const NewsPollView: React.FC<{
+  poll: import('../types/streaming').Poll;
+  newsId: string;
+  currentUserId: string;
+  voteNewsPoll: (newsId: string, optionIds: string[]) => Promise<void>;
+}> = ({ poll, newsId, currentUserId, voteNewsPoll }) => {
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const isMultiple = poll.type === 'multiple';
+  const hasVoted = !!(poll.votes && poll.votes[currentUserId]);
+  
+  const isEnded = poll.endDate && new Date(poll.endDate).getTime() < Date.now();
+  const showResults = hasVoted || isEnded;
+
+  // Calculate stats
+  const totalParticipants = Object.keys(poll.votes || {}).length;
+  const optionCounts: Record<string, number> = {};
+  poll.options.forEach(o => optionCounts[o.id] = 0);
+  let totalVotes = 0;
+  
+  Object.values(poll.votes || {}).forEach(userVotes => {
+    userVotes.forEach(optId => {
+      if (optionCounts[optId] !== undefined) {
+        optionCounts[optId]++;
+        totalVotes++;
+      }
+    });
+  });
+
+  const handleVote = () => {
+    if (selectedOptions.length === 0) return;
+    voteNewsPoll(newsId, selectedOptions);
+  };
+
+  const toggleOption = (id: string) => {
+    if (isMultiple) {
+      setSelectedOptions(prev => 
+        prev.includes(id) ? prev.filter(o => o !== id) : [...prev, id]
+      );
+    } else {
+      setSelectedOptions([id]);
+    }
+  };
+
+  return (
+    <div className="bg-bg-app border border-border-color rounded-[24px] p-5 shadow-sm my-4 font-sans space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] font-bold text-text-primary uppercase tracking-wider font-mono">Опрос</span>
+        {isEnded && (
+          <span className="text-[9px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded uppercase tracking-wider font-mono">
+            Завершён
+          </span>
+        )}
+        {isMultiple && !showResults && (
+          <span className="text-[9px] font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded uppercase tracking-wider font-mono">
+            Несколько вариантов
+          </span>
+        )}
+      </div>
+      <h4 className="text-sm font-bold text-text-primary leading-tight">{poll.question}</h4>
+      
+      <div className="space-y-2.5">
+        {poll.options.map(opt => {
+          const count = optionCounts[opt.id] || 0;
+          const percentage = totalParticipants > 0 
+            ? Math.round((count / totalParticipants) * 100) 
+            : 0;
+          const isSelectedByMe = hasVoted && poll.votes[currentUserId]?.includes(opt.id);
+
+          if (showResults) {
+            return (
+              <div key={opt.id} className="relative overflow-hidden rounded-xl bg-bg-card border border-border-color/60 min-h-[40px] flex items-center px-4 z-0">
+                <div 
+                  className={`absolute inset-y-0 left-0 -z-10 transition-all duration-1000 ease-out ${isSelectedByMe ? 'bg-accent-color/30' : 'bg-border-color/50'}`}
+                  style={{ width: `${percentage}%` }}
+                />
+                <div className="flex w-full justify-between items-center text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold ${isSelectedByMe ? 'text-accent-color' : 'text-text-primary'}`}>
+                      {opt.text}
+                    </span>
+                    {isSelectedByMe && <span className="text-[10px] font-bold text-accent-color font-mono hidden sm:inline">(Ваш выбор)</span>}
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] font-mono shrink-0 pl-2">
+                    <span className="text-text-muted">{count} <span className="hidden sm:inline">голосов</span></span>
+                    <span className="font-bold text-text-primary w-8 text-right">{percentage}%</span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Voting mode
+          return (
+            <label 
+              key={opt.id} 
+              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                selectedOptions.includes(opt.id) 
+                  ? 'border-accent-color bg-accent-light shadow-sm' 
+                  : 'border-border-color bg-bg-card hover:border-accent-color/50'
+              }`}
+            >
+              <input
+                type={isMultiple ? "checkbox" : "radio"}
+                name={`poll-${poll.id}`}
+                checked={selectedOptions.includes(opt.id)}
+                onChange={() => toggleOption(opt.id)}
+                className="w-4 h-4 text-accent-color focus:ring-accent-color bg-bg-app border-border-color cursor-pointer"
+              />
+              <span className="text-xs font-semibold text-text-primary">{opt.text}</span>
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between pt-2 border-t border-border-color/50 mt-4">
+        <div className="text-[10px] text-text-muted font-mono">
+          Проголосовало: {totalParticipants} чел.
+          {poll.endDate && !isEnded && (
+            <span className="ml-2 block sm:inline">
+              (До {new Date(poll.endDate).toLocaleDateString('ru-RU')})
+            </span>
+          )}
+        </div>
+        {!showResults && (
+          <button
+            onClick={handleVote}
+            disabled={selectedOptions.length === 0}
+            className="px-4 py-1.5 bg-accent-color hover:bg-accent-hover disabled:bg-bg-card disabled:text-text-muted disabled:border-border-color disabled:border disabled:cursor-not-allowed text-white text-[10px] font-bold uppercase tracking-wider font-mono rounded-lg transition-all cursor-pointer shadow-soft active:scale-95"
+          >
+            Отправить голос
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const NewsView: React.FC = () => {
-  const { news, rateNews, addNewsComment, addNews, reactionsConfig, toggleNewsReaction, activeNewsId, setActiveNewsId } = useStreaming();
+  const { news, rateNews, addNewsComment, addNews, reactionsConfig, toggleNewsReaction, voteNewsPoll, activeNewsId, setActiveNewsId } = useStreaming();
 
   // Comments form local states
   const [nickname, setNickname] = useState(() => {
@@ -215,6 +352,14 @@ export const NewsView: React.FC = () => {
   const [newsTag, setNewsTag] = useState('');
   const [newsContent, setNewsContent] = useState('');
   const [newsImage, setNewsImage] = useState('');
+  
+  // Poll form local states
+  const [includePoll, setIncludePoll] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollType, setPollType] = useState<'single' | 'multiple'>('single');
+  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollEndDate, setPollEndDate] = useState('');
+
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
@@ -283,13 +428,39 @@ export const NewsView: React.FC = () => {
       return;
     }
 
+    let pollData = undefined;
+    if (includePoll) {
+      const trimmedQuestion = pollQuestion.trim();
+      if (!trimmedQuestion) {
+        setFormError('Пожалуйста, введите вопрос для опроса.');
+        return;
+      }
+      const validOptions = pollOptions.map(o => o.trim()).filter(o => o !== '');
+      if (validOptions.length < 2) {
+        setFormError('Опрос должен содержать минимум 2 варианта ответа.');
+        return;
+      }
+      pollData = {
+        id: 'poll-' + Math.random().toString(36).substring(2, 11),
+        question: trimmedQuestion,
+        type: pollType,
+        options: validOptions.map(text => ({
+          id: 'opt-' + Math.random().toString(36).substring(2, 9),
+          text
+        })),
+        votes: {},
+        ...(pollEndDate ? { endDate: new Date(pollEndDate).toISOString() } : {})
+      };
+    }
+
     try {
       await addNews({
         title: trimmedTitle,
         tag: trimmedTag.toUpperCase(),
         content: trimmedContent,
         imageUrl: newsImage || undefined,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        poll: pollData
       });
       
       setFormSuccess('Новость успешно опубликована!');
@@ -297,6 +468,12 @@ export const NewsView: React.FC = () => {
       setNewsTag('');
       setNewsContent('');
       setNewsImage('');
+      setIncludePoll(false);
+      setPollQuestion('');
+      setPollOptions(['', '']);
+      setPollEndDate('');
+      setPollType('single');
+      
       setTimeout(() => {
         setShowWriteForm(false);
         setFormSuccess('');
@@ -520,6 +697,104 @@ export const NewsView: React.FC = () => {
               />
             </div>
 
+            {/* Poll Creation Section */}
+            <div className="space-y-3 pt-3 border-t border-border-color">
+              <label className="flex items-center gap-2 cursor-pointer w-fit group">
+                <input
+                  type="checkbox"
+                  checked={includePoll}
+                  onChange={(e) => setIncludePoll(e.target.checked)}
+                  className="w-4 h-4 rounded text-accent-color focus:ring-accent-color bg-bg-app border-border-color transition-all cursor-pointer"
+                />
+                <span className="text-xs font-bold text-text-primary group-hover:text-accent-color transition-colors font-mono uppercase tracking-wider">
+                  Прикрепить опрос
+                </span>
+              </label>
+
+              {includePoll && (
+                <div className="bg-bg-app border border-border-color p-4 rounded-xl space-y-4 animate-[fadeIn_0.2s_ease-out]">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono block">Вопрос опроса *</label>
+                    <input 
+                      type="text" 
+                      value={pollQuestion}
+                      onChange={(e) => setPollQuestion(e.target.value)}
+                      placeholder="Например: Какую версию сервера поставить?"
+                      className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono block">Тип голосования</label>
+                      <select
+                        value={pollType}
+                        onChange={(e) => setPollType(e.target.value as 'single' | 'multiple')}
+                        className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all cursor-pointer font-sans"
+                      >
+                        <option value="single">Один вариант</option>
+                        <option value="multiple">Несколько вариантов</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono block">Дата окончания (опционально)</label>
+                      <input 
+                        type="datetime-local" 
+                        value={pollEndDate}
+                        onChange={(e) => setPollEndDate(e.target.value)}
+                        className="w-full bg-bg-card border border-border-color rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono flex items-center justify-between">
+                      <span>Варианты ответа * (минимум 2)</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setPollOptions([...pollOptions, ''])}
+                        className="text-accent-color hover:text-accent-hover text-[10px] font-bold font-sans cursor-pointer flex items-center gap-1 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Добавить
+                      </button>
+                    </label>
+                    
+                    <div className="space-y-2">
+                      {pollOptions.map((opt, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input 
+                            type="text" 
+                            value={opt}
+                            onChange={(e) => {
+                              const newOpts = [...pollOptions];
+                              newOpts[i] = e.target.value;
+                              setPollOptions(newOpts);
+                            }}
+                            placeholder={`Вариант ${i + 1}`}
+                            className="flex-1 bg-bg-card border border-border-color rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
+                          />
+                          {pollOptions.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newOpts = [...pollOptions];
+                                newOpts.splice(i, 1);
+                                setPollOptions(newOpts);
+                              }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors shrink-0 cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Image Upload Selector */}
             <div className="space-y-1.5">
               <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
@@ -644,6 +919,18 @@ export const NewsView: React.FC = () => {
                         {item.content}
                       </p>
 
+                      {/* Poll View (Card) */}
+                      {item.poll && (
+                        <div onClick={e => e.stopPropagation()}>
+                          <NewsPollView 
+                            poll={item.poll} 
+                            newsId={item.id} 
+                            currentUserId={currentUserId} 
+                            voteNewsPoll={voteNewsPoll} 
+                          />
+                        </div>
+                      )}
+
 
                     </div>
 
@@ -743,6 +1030,16 @@ export const NewsView: React.FC = () => {
                   <p className="text-xs md:text-sm text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
                     {selectedArticle.content}
                   </p>
+
+                  {/* Poll View (Overlay) */}
+                  {selectedArticle.poll && (
+                    <NewsPollView 
+                      poll={selectedArticle.poll} 
+                      newsId={selectedArticle.id} 
+                      currentUserId={currentUserId} 
+                      voteNewsPoll={voteNewsPoll} 
+                    />
+                  )}
 
                   {/* Reactions Panel */}
                   <div className="pt-2">

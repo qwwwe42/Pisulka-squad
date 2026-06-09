@@ -9,7 +9,8 @@ import { MinecraftModsView } from './components/MinecraftModsView';
 import { GalleryView } from './components/GalleryView';
 import { CoWatchRoom } from './components/CoWatchRoom';
 import { NewsView } from './components/NewsView';
-import { Settings, Home, Menu, X, Tv, Gamepad2, Image, Sun, Moon, Users, Newspaper } from 'lucide-react';
+import { BunkerGame } from './components/bunker/BunkerGame';
+import { Settings, Home, Menu, X, Tv, Gamepad2, Image, Sun, Moon, Users, Newspaper, ChevronDown } from 'lucide-react';
 
 function AppContent() {
   const {
@@ -17,12 +18,14 @@ function AppContent() {
     activeEpisodeId,
     setActiveShowId,
     setActiveEpisodeId,
-    setActiveNewsId
+    setActiveNewsId,
+    backgroundsConfig
   } = useStreaming();
 
-  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'news' | 'cowatch' | 'gallery' | 'minecraft' | 'admin'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'shows' | 'news' | 'cowatch' | 'gallery' | 'minecraft' | 'admin' | 'bunker'>('home');
   const [minecraftSubTab, setMinecraftSubTab] = useState<'main' | 'mods'>('main');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isGamesMenuOpen, setIsGamesMenuOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('penis_ink_admin') === 'true';
   });
@@ -60,7 +63,24 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-bg-app text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200">
+    <div className={`min-h-screen flex flex-col ${backgroundsConfig[activeTab]?.imageUrl ? 'bg-transparent' : 'bg-bg-app'} text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200 relative z-0`}>
+
+      {/* BACKGROUND IMAGE LAYER */}
+      {backgroundsConfig[activeTab]?.imageUrl && (
+        <>
+          <div 
+            className="fixed inset-0 z-[-2] bg-cover bg-center bg-no-repeat transition-all duration-500"
+            style={{ 
+              backgroundImage: `url(${backgroundsConfig[activeTab].imageUrl})`,
+              backgroundAttachment: window.innerWidth > 768 ? 'fixed' : 'scroll'
+            }}
+          />
+          <div 
+            className="fixed inset-0 z-[-1] transition-all duration-500 pointer-events-none"
+            style={{ backgroundColor: `rgba(0,0,0, ${backgroundsConfig[activeTab].overlayOpacity / 100})` }}
+          />
+        </>
+      )}
 
       {/* Flex row container that wraps sidebar and main content area */}
       <div className="flex-1 flex flex-row min-w-0 w-full relative">
@@ -131,22 +151,6 @@ function AppContent() {
               <span>Сериалы</span>
             </button>
 
-            {/* Совместный просмотр */}
-            <button
-              onClick={() => {
-                setActiveTab('cowatch');
-                handleBackToCatalog();
-                setIsMobileMenuOpen(false);
-              }}
-              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'cowatch'
-                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
-                }`}
-            >
-              <Users className="w-5 h-5" />
-              <span>Совместный просмотр</span>
-            </button>
-
             {/* Новости */}
             <button
               onClick={() => {
@@ -163,55 +167,118 @@ function AppContent() {
               <span>Новости</span>
             </button>
 
-            {/* Майнкрафт */}
+            {/* Игры (Аккордеон) */}
             <div className="flex flex-col">
               <button
-                onClick={() => {
-                  setActiveTab('minecraft');
-                  handleBackToCatalog();
-                  // We don't close the mobile menu immediately so the user can select a sub-tab
-                }}
-                className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'minecraft'
+                onClick={() => setIsGamesMenuOpen(!isGamesMenuOpen)}
+                className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-between transition-all text-left cursor-pointer ${
+                  ['minecraft', 'cowatch', 'bunker'].includes(activeTab) || isGamesMenuOpen
                     ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
                     : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
-                  }`}
-              >
-                <Gamepad2 className="w-5 h-5" />
-                <span>Майнкрафт</span>
-              </button>
-              
-              {/* Animated Sub-tabs */}
-              <div 
-                className={`flex flex-col gap-1 overflow-hidden transition-all duration-300 ease-in-out pl-4 pr-2 ${
-                  activeTab === 'minecraft' ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
                 }`}
               >
+                <div className="flex items-center gap-3">
+                  <Gamepad2 className="w-5 h-5" />
+                  <span>Игры</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isGamesMenuOpen || ['minecraft', 'cowatch', 'bunker'].includes(activeTab) ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {/* Подменю Игры */}
+              <div 
+                className={`flex flex-col gap-1 overflow-hidden transition-all duration-300 ease-in-out pl-4 pr-2 ${
+                  isGamesMenuOpen || ['minecraft', 'cowatch', 'bunker'].includes(activeTab) ? 'max-h-[300px] opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
+                }`}
+              >
+                {/* Бункер */}
                 <button
                   onClick={() => {
-                    setMinecraftSubTab('main');
+                    setActiveTab('bunker');
+                    handleBackToCatalog();
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
-                    minecraftSubTab === 'main'
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 ${
+                    activeTab === 'bunker'
                       ? 'bg-accent-color/10 text-accent-color'
                       : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
                   }`}
                 >
-                  Главная
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50"></span>
+                  Бункер
                 </button>
+
+                {/* Совместный просмотр */}
                 <button
                   onClick={() => {
-                    setMinecraftSubTab('mods');
+                    setActiveTab('cowatch');
+                    handleBackToCatalog();
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
-                    minecraftSubTab === 'mods'
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 ${
+                    activeTab === 'cowatch'
                       ? 'bg-accent-color/10 text-accent-color'
                       : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
                   }`}
                 >
-                  Моды
+                  <Users className="w-3.5 h-3.5" />
+                  Совместный просмотр
                 </button>
+
+                {/* Minecraft */}
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => {
+                      setActiveTab('minecraft');
+                      setMinecraftSubTab('main');
+                      handleBackToCatalog();
+                      // We don't close mobile menu here to let users select sub-tabs if they want
+                    }}
+                    className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 ${
+                      activeTab === 'minecraft' && minecraftSubTab === 'main'
+                        ? 'bg-accent-color/10 text-accent-color'
+                        : activeTab === 'minecraft'
+                        ? 'text-text-primary bg-bg-app/50'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50"></span>
+                    Minecraft
+                  </button>
+                  
+                  {/* Minecraft Sub-tabs (Main / Mods) */}
+                  <div className={`flex flex-col gap-0.5 overflow-hidden transition-all duration-300 ease-in-out pl-6 ${
+                    activeTab === 'minecraft' ? 'max-h-20 opacity-100 mt-1' : 'max-h-0 opacity-0 mt-0'
+                  }`}>
+                    <button
+                      onClick={() => {
+                        setActiveTab('minecraft');
+                        setMinecraftSubTab('main');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all text-left cursor-pointer uppercase tracking-wider ${
+                        minecraftSubTab === 'main' && activeTab === 'minecraft'
+                          ? 'text-accent-color bg-accent-light/50'
+                          : 'text-text-muted hover:text-text-primary hover:bg-bg-app'
+                      }`}
+                    >
+                      Главная
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('minecraft');
+                        setMinecraftSubTab('mods');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all text-left cursor-pointer uppercase tracking-wider ${
+                        minecraftSubTab === 'mods' && activeTab === 'minecraft'
+                          ? 'text-accent-color bg-accent-light/50'
+                          : 'text-text-muted hover:text-text-primary hover:bg-bg-app'
+                      }`}
+                    >
+                      Моды
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -349,6 +416,9 @@ function AppContent() {
             ) : activeTab === 'minecraft' ? (
               // Render Minecraft View or Mods View
               minecraftSubTab === 'main' ? <MinecraftView /> : <MinecraftModsView />
+            ) : activeTab === 'bunker' ? (
+              // Render Bunker Game
+              <BunkerGame />
             ) : activeTab === 'news' ? (
               // Render News View
               <NewsView />

@@ -4,7 +4,7 @@ import {
   Plus, Trash2, Database, AlertCircle, 
   Check, Info, Tv, CheckCircle2, Sparkles,
   Edit3, Eye, EyeOff, Camera, FileText, Gamepad2, Clock,
-  Cloud, CloudOff, X, Smile, ArrowUp, ArrowDown, Box
+  Cloud, CloudOff, X, Smile, ArrowUp, ArrowDown, Box, Image as ImageIcon
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode, EmojiItem } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
@@ -26,7 +26,8 @@ export const AdminPanel: React.FC = () => {
     addEpisode, deleteEpisode, isFirebaseConnected,
     news, addNews, updateNews, deleteNews,
     minecraftConfig, updateMinecraftConfig,
-    reactionsConfig, updateReactionsConfig
+    reactionsConfig, updateReactionsConfig,
+    backgroundsConfig, updateBackgroundsConfig
   } = useStreaming();
 
   // Unique actors pool database aggregated from all shows
@@ -53,7 +54,7 @@ export const AdminPanel: React.FC = () => {
   }, [shows]);
 
   // Tabs
-  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions'>('shows');
+  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions' | 'backgrounds'>('shows');
 
   // Notification message
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -179,6 +180,90 @@ export const AdminPanel: React.FC = () => {
   const [modpackDesc, setModpackDesc] = useState('');
   const [modpackVersion, setModpackVersion] = useState('');
   const [modpackUrl, setModpackUrl] = useState('');
+
+  // Backgrounds Form State
+  const [editingBgTabId, setEditingBgTabId] = useState<string>('home');
+  const [bgImageUrl, setBgImageUrl] = useState('');
+  const [bgOverlay, setBgOverlay] = useState(80);
+
+  const TABS_FOR_BG = [
+    { id: 'home', label: 'Главная' },
+    { id: 'shows', label: 'Сериалы' },
+    { id: 'news', label: 'Новости' },
+    { id: 'bunker', label: 'Бункер' },
+    { id: 'cowatch', label: 'Совместный просмотр' },
+    { id: 'minecraft', label: 'Майнкрафт' },
+    { id: 'gallery', label: 'Галерея' }
+  ];
+
+  // Load selected background into form
+  React.useEffect(() => {
+    if (adminTab === 'backgrounds') {
+      const bg = backgroundsConfig[editingBgTabId];
+      if (bg) {
+        setBgImageUrl(bg.imageUrl);
+        setBgOverlay(bg.overlayOpacity);
+      } else {
+        setBgImageUrl('');
+        setBgOverlay(80);
+      }
+    }
+  }, [adminTab, editingBgTabId, backgroundsConfig]);
+
+  const handleSaveBackground = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = bgImageUrl.trim();
+      const newConfig = { ...backgroundsConfig };
+      
+      if (!url) {
+        delete newConfig[editingBgTabId];
+        await updateBackgroundsConfig(newConfig);
+        showStatusMsg('Фон успешно удален');
+        return;
+      }
+
+      // Check if image is valid (only if it's an external URL)
+      if (url.startsWith('http')) {
+        try {
+          await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = url;
+          });
+        } catch {
+          showStatusMsg('Ошибка: картинка недоступна или битая ссылка', 'error');
+          return;
+        }
+      }
+
+      newConfig[editingBgTabId] = {
+        imageUrl: url,
+        overlayOpacity: bgOverlay
+      };
+      
+      await updateBackgroundsConfig(newConfig);
+      showStatusMsg('Фон успешно сохранен');
+    } catch (err) {
+      console.error(err);
+      showStatusMsg('Системная ошибка при сохранении фона', 'error');
+    }
+  };
+
+  const handleDeleteBackground = async () => {
+    if (!confirm('Сбросить фон для этой вкладки?')) return;
+    try {
+      const newConfig = { ...backgroundsConfig };
+      delete newConfig[editingBgTabId];
+      await updateBackgroundsConfig(newConfig);
+      showStatusMsg('Фон сброшен');
+      setBgImageUrl('');
+      setBgOverlay(80);
+    } catch {
+      showStatusMsg('Ошибка при сбросе', 'error');
+    }
+  };
 
   const [prevMinecraftConfig, setPrevMinecraftConfig] = useState(minecraftConfig);
   if (minecraftConfig !== prevMinecraftConfig) {
@@ -747,6 +832,17 @@ export const AdminPanel: React.FC = () => {
             >
               <Smile className="w-4 h-4" />
               Настройка реакций
+            </button>
+            <button
+              onClick={() => {
+                setAdminTab('backgrounds');
+              }}
+              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors ${
+                adminTab === 'backgrounds' ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" />
+              Фоны вкладок
             </button>
           </nav>
         </div>
@@ -2714,6 +2810,122 @@ export const AdminPanel: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* TAB 8: BACKGROUNDS */}
+        {adminTab === 'backgrounds' && (
+          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
+                Фоны вкладок
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                Настройте индивидуальные полноэкранные фоновые изображения для разных разделов сайта.
+              </p>
+            </div>
+
+            <div className="flex gap-4 border-b border-slate-800 pb-4 overflow-x-auto">
+              {TABS_FOR_BG.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setEditingBgTabId(tab.id)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap cursor-pointer ${
+                    editingBgTabId === tab.id
+                      ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
+                      : 'bg-slate-900 text-slate-500 hover:text-slate-300 border border-transparent'
+                  }`}
+                >
+                  {tab.label}
+                  {backgroundsConfig[tab.id]?.imageUrl && (
+                    <div className="inline-block w-2 h-2 rounded-full bg-emerald-500 ml-2" title="Фон установлен" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSaveBackground} className="bg-slate-950/45 border border-slate-900 rounded-xl p-4 space-y-4 font-sans">
+              <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider font-sans">
+                Настройки фона: {TABS_FOR_BG.find(t => t.id === editingBgTabId)?.label}
+              </h4>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ссылка (URL) ИЛИ загрузка файла</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={bgImageUrl}
+                        onChange={(e) => setBgImageUrl(e.target.value)}
+                        placeholder="https://... или выберите файл"
+                        className="flex-1 bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                      />
+                      <ImageUploader 
+                        onImageUploaded={(base64) => setBgImageUrl(base64)}
+                        maxWidth={1920}
+                        className="shrink-0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Затемнение (Opacity): {bgOverlay}%</label>
+                      <span className="text-[9px] text-slate-500">0% = светло, 100% = чёрный</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={bgOverlay}
+                      onChange={(e) => setBgOverlay(Number(e.target.value))}
+                      className="w-full cursor-pointer accent-purple-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleDeleteBackground}
+                      disabled={!backgroundsConfig[editingBgTabId]}
+                      className="px-4 py-2.5 bg-rose-950/20 hover:bg-rose-900/40 border border-rose-900/30 text-rose-400 disabled:opacity-30 rounded-lg text-xs font-semibold flex-1 cursor-pointer transition-all"
+                    >
+                      Сбросить
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 bg-purple-650 hover:bg-purple-600 text-white rounded-lg text-xs font-semibold flex-[2] cursor-pointer active:scale-95 transition-all shadow-lg shadow-purple-950/20"
+                    >
+                      Сохранить фон
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Предпросмотр</label>
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-800 bg-slate-900 flex items-center justify-center">
+                    {bgImageUrl ? (
+                      <>
+                        <div 
+                          className="absolute inset-0 bg-cover bg-center" 
+                          style={{ backgroundImage: `url(${bgImageUrl})` }}
+                        />
+                        <div 
+                          className="absolute inset-0"
+                          style={{ backgroundColor: `rgba(0,0,0,${bgOverlay / 100})` }}
+                        />
+                        <div className="relative z-10 w-3/4 h-1/2 rounded-lg bg-slate-900/60 border border-slate-800/80 backdrop-blur flex flex-col items-center justify-center shadow-2xl p-4 text-center">
+                          <span className="text-slate-200 font-bold text-sm">Пример контента</span>
+                          <span className="text-slate-400 text-[10px] mt-1">Текст должен хорошо читаться поверх фона</span>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-slate-500 text-xs">Нет изображения</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </form>
           </div>
         )}
       </div>

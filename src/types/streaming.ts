@@ -40,6 +40,27 @@ export interface ReactionsConfig {
   emojiList: EmojiItem[];
 }
 
+export interface TabBackground {
+  imageUrl: string;
+  overlayOpacity: number; // 0 to 100
+}
+
+export type BackgroundsConfig = Record<string, TabBackground>;
+
+export interface PollOption {
+  id: string;
+  text: string;
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  options: PollOption[];
+  type: 'single' | 'multiple';
+  endDate?: string; // ISO string
+  votes: Record<string, string[]>; // userId -> array of optionIds
+}
+
 export interface NewsArticle {
   id: string;
   title: string;
@@ -50,6 +71,7 @@ export interface NewsArticle {
   ratings?: Record<string, number>; // userId -> rating (1-5)
   comments?: Comment[]; // User comments list
   reactions?: Record<string, string[]>; // emojiId -> array of userIds who reacted
+  poll?: Poll;
 }
 
 export interface MinecraftRule {

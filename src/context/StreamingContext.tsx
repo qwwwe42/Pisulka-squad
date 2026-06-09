@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem, EmojiItem, ReactionsConfig } from '../types/streaming';
+import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem, EmojiItem, ReactionsConfig, BackgroundsConfig } from '../types/streaming';
 
 interface StreamingContextType {
   shows: Show[];
@@ -31,11 +31,14 @@ interface StreamingContextType {
   reactionsConfig: ReactionsConfig;
   updateReactionsConfig: (config: ReactionsConfig) => Promise<void>;
   toggleNewsReaction: (newsId: string, emojiId: string) => Promise<void>;
+  voteNewsPoll: (newsId: string, optionIds: string[]) => Promise<void>;
   minecraftConfig: MinecraftConfig;
   updateMinecraftConfig: (config: MinecraftConfig) => Promise<void>;
   gallery: GalleryItem[];
   addGalleryItem: (imageUrl: string, uploadedBy: string, caption?: string) => Promise<string>;
   deleteGalleryItem: (itemId: string) => Promise<void>;
+  backgroundsConfig: BackgroundsConfig;
+  updateBackgroundsConfig: (config: BackgroundsConfig) => Promise<void>;
   loadDemoData: () => void;
   clearAllData: () => void;
   isFirebaseConnected: boolean;
@@ -313,6 +316,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return [];
     }
   });
+  const [backgroundsConfig, setBackgroundsConfig] = useState<BackgroundsConfig>(() => {
+    try {
+      const cached = localStorage.getItem('penis_ink_backgrounds_config');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  });
   const [activeShowId, setActiveShowId] = useState<string | null>(null);
   const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
   const [activeNewsId, setActiveNewsId] = useState<string | null>(null);
@@ -532,12 +543,28 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           console.warn('Firestore gallery onSnapshot error:', error);
         });
 
+        // Start real-time listener for backgrounds settings
+        const unsubBackgrounds = onSnapshot(doc(db, 'settings', 'backgrounds'), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as BackgroundsConfig;
+            setBackgroundsConfig(data);
+            localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(data));
+          } else {
+            setDoc(doc(db, 'settings', 'backgrounds'), {}).catch(console.error);
+            setBackgroundsConfig({});
+            localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify({}));
+          }
+        }, (error) => {
+          console.warn('Firestore backgrounds config onSnapshot error:', error);
+        });
+
         unsubscribeRef.current = () => {
           unsub();
           unsubNews();
           unsubMinecraft();
           unsubGallery();
           unsubReactions();
+          unsubBackgrounds();
         };
       } catch (err) {
         console.warn('Firebase connection failed, using localStorage:', err);
@@ -560,6 +587,11 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (!cachedReactions) {
           setReactionsConfig({ emojiList: DEFAULT_EMOJI_LIST });
           localStorage.setItem('penis_ink_reactions_config', JSON.stringify({ emojiList: DEFAULT_EMOJI_LIST }));
+        }
+        const cachedBackgrounds = localStorage.getItem('penis_ink_backgrounds_config');
+        if (!cachedBackgrounds) {
+          setBackgroundsConfig({});
+          localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify({}));
         }
         const cachedGallery = localStorage.getItem('penis_ink_gallery');
         if (!cachedGallery || JSON.parse(cachedGallery).length === 0) {
@@ -986,6 +1018,19 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const updateBackgroundsConfig = async (config: BackgroundsConfig) => {
+    setBackgroundsConfig(config);
+    localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(config));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        await setDoc(doc(db, 'settings', 'backgrounds'), config);
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
   const updateReactionsConfig = async (newConfig: ReactionsConfig) => {
     setReactionsConfig(newConfig);
     localStorage.setItem('penis_ink_reactions_config', JSON.stringify(newConfig));
@@ -1020,6 +1065,33 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
 
         return { ...item, reactions };
+      }
+      return item;
+    });
+
+    const sortedNews = sortNewsItems(updatedNews);
+    setNews(sortedNews);
+    localStorage.setItem('penis_ink_news', JSON.stringify(sortedNews));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        const targetNews = sortedNews.find(item => item.id === newsId);
+        if (targetNews) {
+          await setDoc(doc(db, 'news', newsId), targetNews);
+        }
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
+  const voteNewsPoll = async (newsId: string, optionIds: string[]) => {
+    const userId = getOrCreateUserId();
+    const updatedNews = news.map((item) => {
+      if (item.id === newsId && item.poll) {
+        const votes = { ...(item.poll.votes || {}) };
+        votes[userId] = optionIds;
+        return { ...item, poll: { ...item.poll, votes } };
       }
       return item;
     });
@@ -1110,6 +1182,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
         await deleteDoc(doc(db, 'settings', 'minecraft'));
         await deleteDoc(doc(db, 'settings', 'reactions'));
+        await deleteDoc(doc(db, 'settings', 'backgrounds'));
       } catch (e) {
         console.error('Firestore clear failed:', e);
       }
@@ -1119,12 +1192,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setNews([]);
     setGallery([]);
     setMinecraftConfig(DEFAULT_MINECRAFT_CONFIG);
+    setBackgroundsConfig({});
     localStorage.removeItem(LS_SHOWS_KEY);
     localStorage.removeItem(LS_PROGRESS_KEY);
     localStorage.removeItem(LS_SYNCED_KEY);
     localStorage.removeItem('penis_ink_news');
     localStorage.removeItem('penis_ink_minecraft_config');
     localStorage.removeItem('penis_ink_reactions_config');
+    localStorage.removeItem('penis_ink_backgrounds_config');
     localStorage.removeItem('penis_ink_gallery');
     setActiveShowId(null);
     setActiveEpisodeId(null);
@@ -1159,7 +1234,10 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       updateMinecraftConfig,
       reactionsConfig,
       updateReactionsConfig,
+      backgroundsConfig,
+      updateBackgroundsConfig,
       toggleNewsReaction,
+      voteNewsPoll,
       gallery,
       addGalleryItem,
       deleteGalleryItem,
