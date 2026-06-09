@@ -14,6 +14,7 @@ interface Participant {
   id: string;
   name: string;
   joinedAt: string;
+  lastActive?: number;
 }
 
 interface Message {
@@ -241,6 +242,89 @@ const generateRoomCode = () => {
   return Math.floor(10000 + Math.random() * 90000).toString();
 };
 
+const cleanupInactiveParticipants = async (roomId: string) => {
+  const roomRef = doc(db, 'rooms', roomId);
+  try {
+    await runTransaction(db, async (transaction) => {
+      const roomDoc = await transaction.get(roomRef);
+      if (!roomDoc.exists()) return;
+
+      const data = roomDoc.data() as RoomData;
+      const participants = data.participants || [];
+      const now = Date.now();
+      const activeThreshold = 45000; // 45 seconds
+
+      const inactiveParticipants: Participant[] = [];
+      const activeParticipants: Participant[] = [];
+
+      participants.forEach(p => {
+        const lastActiveTime = p.lastActive || (p.joinedAt ? new Date(p.joinedAt).getTime() : now);
+        if (now - lastActiveTime > activeThreshold) {
+          inactiveParticipants.push(p);
+        } else {
+          activeParticipants.push(p);
+        }
+      });
+
+      if (inactiveParticipants.length === 0) {
+        return;
+      }
+
+      // If everyone is inactive/pruned, delete the room
+      if (activeParticipants.length === 0) {
+        transaction.delete(roomRef);
+        transaction.delete(doc(db, 'rooms', roomId, 'secure', 'config'));
+        console.log(`Room ${roomId} deleted because all participants were inactive.`);
+        return;
+      }
+
+      // Check if host needs to be transferred
+      let newHostId = data.hostId;
+      let newHostName = data.hostName;
+      let hostTransferred = false;
+      const hostStillActive = activeParticipants.some(p => p.id === data.hostId);
+
+      if (!hostStillActive) {
+        const nextHost = activeParticipants[0];
+        newHostId = nextHost.id;
+        newHostName = nextHost.name;
+        hostTransferred = true;
+      }
+
+      const newMessages = [...(data.messages || [])];
+      inactiveParticipants.forEach(p => {
+        newMessages.push({
+          id: `system-timeout-${p.id}-${now}`,
+          senderId: 'system',
+          senderName: 'Система',
+          text: `${p.name} покинул комнату из-за неактивности.`,
+          sentAt: new Date().toISOString()
+        });
+      });
+
+      if (hostTransferred) {
+        newMessages.push({
+          id: `system-newhost-${now}`,
+          senderId: 'system',
+          senderName: 'Система',
+          text: `Новым хостом комнаты назначен ${newHostName}.`,
+          sentAt: new Date().toISOString()
+        });
+      }
+
+      transaction.update(roomRef, {
+        participants: activeParticipants,
+        messages: newMessages.slice(-50),
+        hostId: newHostId,
+        hostName: newHostName,
+        emptySince: null
+      });
+    });
+  } catch (err) {
+    console.error(`Error sweeping room ${roomId}:`, err);
+  }
+};
+
 export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({ 
   showId, 
   showTitle, 
@@ -334,6 +418,40 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
     localStorage.setItem('penis_ink_nickname', trimmed);
   };
 
+  const sendHeartbeat = async () => {
+    if (!roomCode || !isJoined) return;
+    const roomRef = doc(db, 'rooms', roomCode);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) return;
+        
+        const data = roomDoc.data() as RoomData;
+        const participants = data.participants || [];
+        
+        let updated = false;
+        const updatedParticipants = participants.map(p => {
+          if (p.id === userId) {
+            updated = true;
+            return {
+              ...p,
+              lastActive: Date.now()
+            };
+          }
+          return p;
+        });
+
+        if (updated) {
+          transaction.update(roomRef, {
+            participants: updatedParticipants
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to send heartbeat:', e);
+    }
+  };
+
   // Copy Room Code Helper
   const handleCopyCode = () => {
     navigator.clipboard.writeText(roomCode);
@@ -363,7 +481,8 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
     const hostParticipant: Participant = {
       id: userId,
       name: nickname.trim(),
-      joinedAt: new Date().toISOString()
+      joinedAt: new Date().toISOString(),
+      lastActive: Date.now()
     };
 
     const finalShowTitle = cleanUrl ? (showTitle || customShowTitle.trim() || 'Произвольное видео') : 'Ожидание видео';
@@ -431,7 +550,8 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
         const pUser: Participant = {
           id: userId,
           name: nickname.trim(),
-          joinedAt: newJoinedAt
+          joinedAt: newJoinedAt,
+          lastActive: Date.now()
         };
 
         const updatedParticipants = existingParticipants.filter(p => p.id !== userId);
@@ -572,16 +692,42 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
           };
           const updatedMessages = [...existingMessages, leaveMsg].slice(-50);
           
-          const updates: any = {
-            participants: updatedParticipants,
-            messages: updatedMessages
-          };
-
           if (updatedParticipants.length === 0) {
-            updates.emptySince = Date.now();
+            transaction.delete(roomRef);
+            transaction.delete(doc(db, 'rooms', roomCode, 'secure', 'config'));
+          } else {
+            let newHostId = data.hostId;
+            let newHostName = data.hostName;
+            let hostTransferred = false;
+            
+            if (data.hostId === userId) {
+              const nextHost = updatedParticipants[0];
+              newHostId = nextHost.id;
+              newHostName = nextHost.name;
+              hostTransferred = true;
+            }
+
+            const updates: any = {
+              participants: updatedParticipants,
+              messages: updatedMessages,
+              hostId: newHostId,
+              hostName: newHostName,
+              emptySince: null
+            };
+
+            if (hostTransferred) {
+              const hostMsg: Message = {
+                id: `system-newhost-${Date.now()}`,
+                senderId: 'system',
+                senderName: 'Система',
+                text: `Новым хостом комнаты назначен ${newHostName}.`,
+                sentAt: new Date().toISOString()
+              };
+              updates.messages = [...updatedMessages, hostMsg].slice(-50);
+            }
+
+            transaction.update(roomRef, updates);
           }
-          
-          transaction.update(roomRef, updates);
         }
       });
     } catch (e) {
@@ -623,6 +769,12 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
     }
   };
 
+  const publicRoomsRef = useRef<RoomData[]>([]);
+
+  useEffect(() => {
+    publicRoomsRef.current = publicRooms;
+  }, [publicRooms]);
+
   // Listen to public rooms list in real-time when on the home screen and list is active
   useEffect(() => {
     if (isJoined || activeTab !== 'public') return;
@@ -642,20 +794,24 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
         const participants = data.participants || [];
         
         if (participants.length === 0) {
-           const emptySince = data.emptySince;
-           if (emptySince && now - emptySince > 60000) {
-               // Expired grace period, clean up room
-               deleteDoc(doc(db, 'rooms', data.id)).catch(console.error);
-           } else if (!emptySince) {
-               // Mark as empty
-               updateDoc(doc(db, 'rooms', data.id), { emptySince: now }).catch(console.error);
-           }
-           // Do not push empty rooms to public list
+           // Delete immediately
+           deleteDoc(doc(db, 'rooms', data.id)).catch(console.error);
+           deleteDoc(doc(db, 'rooms', data.id, 'secure', 'config')).catch(console.error);
         } else {
-           if (data.emptySince) {
-               updateDoc(doc(db, 'rooms', data.id), { emptySince: null }).catch(console.error);
+           // Filter out empty rooms or rooms where all participants are inactive
+           const activeThreshold = 45000;
+           const activeCount = participants.filter(p => {
+             const lastActiveTime = p.lastActive || (p.joinedAt ? new Date(p.joinedAt).getTime() : now);
+             return now - lastActiveTime <= activeThreshold;
+           }).length;
+
+           if (activeCount === 0) {
+              // All inactive! Clean up room immediately.
+              deleteDoc(doc(db, 'rooms', data.id)).catch(console.error);
+              deleteDoc(doc(db, 'rooms', data.id, 'secure', 'config')).catch(console.error);
+           } else {
+              rooms.push(data);
            }
-           rooms.push(data);
         }
       });
       // Sort rooms: participants count descending
@@ -671,7 +827,17 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       setIsLoadingRooms(false);
     });
 
-    return () => unsub();
+    // Sweep public rooms periodically
+    const sweepInterval = setInterval(() => {
+      publicRoomsRef.current.forEach(room => {
+        cleanupInactiveParticipants(room.id);
+      });
+    }, 15000);
+
+    return () => {
+      unsub();
+      clearInterval(sweepInterval);
+    };
   }, [isJoined, activeTab]);
 
   const currentUserRef = useRef<Participant | null>(null);
@@ -719,7 +885,7 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
             participants: arrayRemove(currentUserRef.current)
          }).catch(() => {});
        }
-    };
+     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
@@ -727,6 +893,29 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [roomCode, isJoined, userId]);
+
+  // Periodic heartbeat and sweeping while inside a room
+  useEffect(() => {
+    if (!isJoined || !roomCode) return;
+
+    // Send initial heartbeat immediately
+    sendHeartbeat();
+
+    // Heartbeat every 15 seconds
+    const heartbeatInterval = setInterval(() => {
+      sendHeartbeat();
+    }, 15000);
+
+    // Sweep inactive participants every 15 seconds
+    const sweepInterval = setInterval(() => {
+      cleanupInactiveParticipants(roomCode);
+    }, 15000);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      clearInterval(sweepInterval);
+    };
+  }, [isJoined, roomCode, userId]);
 
   // Scroll chat to bottom on new messages
   useEffect(() => {
