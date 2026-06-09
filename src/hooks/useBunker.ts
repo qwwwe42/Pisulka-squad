@@ -39,8 +39,23 @@ export const useBunker = () => {
     const q = query(collection(db, 'bunker_rooms'), where('status', '==', 'lobby'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const rooms: BunkerRoom[] = [];
-      snapshot.forEach(doc => {
-        rooms.push(doc.data() as BunkerRoom);
+      const now = Date.now();
+      const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
+      snapshot.forEach(docSnap => {
+        const roomData = docSnap.data() as BunkerRoom;
+        
+        if (now - roomData.createdAt > TWELVE_HOURS) {
+          deleteDoc(doc(db, 'bunker_rooms', roomData.id)).catch(() => {});
+          return;
+        }
+        
+        if (!roomData.players || roomData.players.length === 0) {
+          deleteDoc(doc(db, 'bunker_rooms', roomData.id)).catch(() => {});
+          return;
+        }
+
+        rooms.push(roomData);
       });
       setRoomsList(rooms);
     });
@@ -273,27 +288,25 @@ export const useBunker = () => {
     }
     
     const roomId = activeRoom.id;
+    const currentData = activeRoom;
     setActiveRoom(null); // Сразу очищаем локальный стейт, чтобы UI переключился
 
     try {
       const roomRef = doc(db, 'bunker_rooms', roomId);
-      const roomSnap = await getDoc(roomRef);
-      if (roomSnap.exists()) {
-        const currentData = roomSnap.data() as BunkerRoom;
-        const newPlayers = currentData.players.filter(p => p.id !== currentUserId);
-        
-        if (newPlayers.length === 0) {
-          await deleteDoc(roomRef);
+      const newPlayers = currentData.players.filter(p => p.id !== currentUserId);
+      
+      if (newPlayers.length === 0) {
+        // Не ждем ответа (чтобы успело отработать в beforeunload)
+        deleteDoc(roomRef).catch(() => {});
+      } else {
+        const updates: any = { players: newPlayers };
+        if (currentData.hostId === currentUserId) {
+          updates.hostId = newPlayers[0].id;
+          updates.logs = arrayUnion(`Ведущий покинул игру. Новым ведущим становится ${newPlayers[0].nickname}.`);
         } else {
-          const updates: any = { players: newPlayers };
-          if (currentData.hostId === currentUserId) {
-            updates.hostId = newPlayers[0].id;
-            updates.logs = arrayUnion(`Ведущий покинул игру. Новым ведущим становится ${newPlayers[0].nickname}.`);
-          } else {
-            updates.logs = arrayUnion(`Игрок ${profile.nickname} покинул игру.`);
-          }
-          await updateDoc(roomRef, updates);
+          updates.logs = arrayUnion(`Игрок ${profile.nickname} покинул игру.`);
         }
+        updateDoc(roomRef, updates).catch(() => {});
       }
     } catch (e) {
       console.error('Ошибка при выходе из комнаты:', e);
