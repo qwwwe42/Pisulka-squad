@@ -2,6 +2,7 @@ import React from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { ExternalLink, Puzzle, Box, Download, Clock, Sparkles } from 'lucide-react';
 import { getDirectDownloadUrl } from '../utils/drive';
+import { MinecraftRain } from './MinecraftRain';
 
 export const MinecraftModsView: React.FC = () => {
   const { minecraftConfig } = useStreaming();
@@ -11,6 +12,7 @@ export const MinecraftModsView: React.FC = () => {
   return (
     <div className="minecraft-view-container glass-panel relative min-h-screen w-full flex flex-col items-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0 pointer-events-none mods-overlay" />
+      <MinecraftRain intensity="normal" />
       
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-8 py-12 pb-32 animate-fade-in flex flex-col flex-1">
         
