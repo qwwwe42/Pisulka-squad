@@ -125,6 +125,12 @@ function AppContent() {
           className={`fixed inset-y-0 left-0 z-50 w-64 md:my-4 md:ml-4 md:rounded-2xl border border-border-sidebar bg-bg-sidebar backdrop-blur-[12px] shadow-sidebar p-4 flex flex-col gap-8 shrink-0 transition-all duration-300 md:translate-x-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] ${
             isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
+          style={{ 
+            zIndex: 9999,
+            ...(activeTab === 'minecraft' && minecraftSubTab === 'mods' 
+              ? { backgroundColor: theme === 'dark' ? '#141416' : '#FFEBF2' } 
+              : {})
+          }}
         >
           {/* Sidebar Close button on mobile */}
           <button
