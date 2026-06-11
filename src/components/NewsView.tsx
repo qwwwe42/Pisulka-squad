@@ -3,9 +3,70 @@ import { useStreaming, getNewsAverageRating, getOrCreateUserId } from '../contex
 import type { Comment, NewsArticle, ReactionsConfig, EmojiItem } from '../types/streaming';
 import { 
   Newspaper, Star, MessageSquare, Send, Calendar, 
-  Award, X, CornerDownRight, Plus
+  Award, X, CornerDownRight, Plus, Play, Film, ArrowUpDown
 } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
+import { VideoUploader } from './VideoUploader';
+import { getGoogleDriveEmbedUrl } from '../utils/drive';
+
+// YouTube utilities
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+};
+
+const getYouTubeThumbnail = (url: string): string | null => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? `https://img.youtube.com/vi/${match[2]}/0.jpg` : null;
+};
+
+const renderNewsVideoPlayer = (url: string) => {
+  const ytEmbed = getYouTubeEmbedUrl(url);
+  const gdEmbed = getGoogleDriveEmbedUrl(url);
+
+  if (ytEmbed) {
+    return (
+      <div className="relative aspect-[16/9] w-full bg-black border-b border-border-color/60 overflow-hidden">
+        <iframe
+          src={ytEmbed}
+          title="YouTube video player"
+          className="w-full h-full border-none"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  if (gdEmbed) {
+    return (
+      <div className="relative aspect-[16/9] w-full bg-black border-b border-border-color/60 overflow-hidden">
+        <iframe
+          src={gdEmbed}
+          title="Google Drive video player"
+          className="w-full h-full border-none"
+          allow="autoplay; fullscreen"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // Direct MP4 or other video link
+  return (
+    <div className="relative aspect-[16/9] w-full bg-black border-b border-border-color/60 overflow-hidden flex items-center justify-center">
+      <video
+        src={url}
+        controls
+        className="w-full h-full object-contain"
+      />
+    </div>
+  );
+};
 
 // Color gradient generator for user avatars based on nickname hash
 const getAvatarGradient = (name: string) => {
@@ -352,6 +413,13 @@ export const NewsView: React.FC = () => {
   const [newsTag, setNewsTag] = useState('');
   const [newsContent, setNewsContent] = useState('');
   const [newsImage, setNewsImage] = useState('');
+  const [newsVideoUrl, setNewsVideoUrl] = useState('');
+  const [newsVideoSource, setNewsVideoSource] = useState<'link' | 'upload'>('link');
+  const [newsHashtags, setNewsHashtags] = useState('');
+
+  // Filtering local states
+  const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'default' | 'newest' | 'hashtags'>('default');
   
   // Poll form local states
   const [includePoll, setIncludePoll] = useState(false);
@@ -364,6 +432,54 @@ export const NewsView: React.FC = () => {
   const [formSuccess, setFormSuccess] = useState('');
 
   const currentUserId = getOrCreateUserId();
+
+  // Extract unique hashtags from all news, sorted by popularity (frequency) first, then alphabetically
+  const allHashtags = React.useMemo(() => {
+    const frequency: Record<string, number> = {};
+    news.forEach(item => {
+      if (item.hashtags) {
+        item.hashtags.forEach(t => {
+          const cleanTag = t.toLowerCase().trim();
+          frequency[cleanTag] = (frequency[cleanTag] || 0) + 1;
+        });
+      }
+    });
+    return Object.keys(frequency).sort((a, b) => {
+      const freqDiff = frequency[b] - frequency[a];
+      if (freqDiff !== 0) return freqDiff;
+      return a.localeCompare(b);
+    });
+  }, [news]);
+
+  // Filter and sort news by selected hashtag and chosen sort option
+  const filteredNews = React.useMemo(() => {
+    let result = [...news];
+    if (selectedHashtag) {
+      result = result.filter(item => 
+        item.hashtags?.some(t => t.toLowerCase().trim() === selectedHashtag.toLowerCase().trim())
+      );
+    }
+    
+    if (sortBy === 'newest') {
+      result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (sortBy === 'hashtags') {
+      result.sort((a, b) => {
+        const hasA = a.hashtags && a.hashtags.length > 0;
+        const hasB = b.hashtags && b.hashtags.length > 0;
+        if (!hasA && !hasB) return new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (!hasA) return 1;
+        if (!hasB) return -1;
+        
+        const tagA = a.hashtags![0].toLowerCase().trim();
+        const tagB = b.hashtags![0].toLowerCase().trim();
+        const tagDiff = tagA.localeCompare(tagB);
+        if (tagDiff !== 0) return tagDiff;
+        
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+    }
+    return result;
+  }, [news, selectedHashtag, sortBy]);
 
   // Find the highest rated news item to display at the top as a teaser/highlight
   const highestRatedNews = React.useMemo(() => {
@@ -453,12 +569,19 @@ export const NewsView: React.FC = () => {
       };
     }
 
+    const hashtagsArray = newsHashtags
+      .split(',')
+      .map(tag => tag.trim().replace(/^#/, ''))
+      .filter(tag => tag.length > 0);
+
     try {
       await addNews({
         title: trimmedTitle,
         tag: trimmedTag.toUpperCase(),
         content: trimmedContent,
         imageUrl: newsImage || undefined,
+        videoUrl: newsVideoUrl.trim() || undefined,
+        hashtags: hashtagsArray.length > 0 ? hashtagsArray : undefined,
         date: new Date().toISOString(),
         poll: pollData
       });
@@ -468,6 +591,9 @@ export const NewsView: React.FC = () => {
       setNewsTag('');
       setNewsContent('');
       setNewsImage('');
+      setNewsVideoUrl('');
+      setNewsVideoSource('link');
+      setNewsHashtags('');
       setIncludePoll(false);
       setPollQuestion('');
       setPollOptions(['', '']);
@@ -579,6 +705,18 @@ export const NewsView: React.FC = () => {
   const articleRating = selectedArticle ? getNewsAverageRating(selectedArticle.ratings) : { average: '0.0', count: 0 };
   const userRating = selectedArticle ? (selectedArticle.ratings?.[currentUserId] || 0) : 0;
   const commentTree = selectedArticle ? buildCommentTree(selectedArticle.comments || []) : [];
+
+  const relatedNews = React.useMemo(() => {
+    if (!selectedArticle || !selectedArticle.hashtags || selectedArticle.hashtags.length === 0) return [];
+    const currentTags = selectedArticle.hashtags.map(t => t.toLowerCase().trim());
+    return news
+      .filter(item => {
+        if (item.id === selectedArticle.id) return false;
+        if (!item.hashtags || item.hashtags.length === 0) return false;
+        return item.hashtags.some(tag => currentTags.includes(tag.toLowerCase().trim()));
+      })
+      .slice(0, 3); // Display at most 3 related news
+  }, [selectedArticle, news]);
 
   // ── Render general feed layout (Hero, stats, list/grid) ──────────────────
   return (
@@ -795,6 +933,93 @@ export const NewsView: React.FC = () => {
               )}
             </div>
 
+            {/* Video Input Selector */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
+                Видео к новости (необязательно)
+              </label>
+              <div className="flex gap-2 bg-bg-app border border-border-color p-0.5 rounded-lg text-[9px] font-semibold w-fit mb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewsVideoSource('link');
+                    if (newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
+                  }}
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                    newsVideoSource === 'link'
+                      ? 'bg-accent-color text-white shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  Ссылка
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewsVideoSource('upload');
+                    if (!newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
+                  }}
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                    newsVideoSource === 'upload'
+                      ? 'bg-accent-color text-white shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  Загрузить файл
+                </button>
+              </div>
+
+              {newsVideoSource === 'link' ? (
+                <input 
+                  type="url" 
+                  value={newsVideoUrl}
+                  onChange={(e) => setNewsVideoUrl(e.target.value)}
+                  placeholder="Вставьте ссылку на видео (YouTube, Google Drive, MP4)..."
+                  className="w-full bg-bg-app border border-border-color rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
+                />
+              ) : (
+                <div className="space-y-2">
+                  {newsVideoUrl && newsVideoUrl.startsWith('data:video/') ? (
+                    <div className="relative aspect-video max-w-sm rounded-xl border border-border-color overflow-hidden bg-bg-app">
+                      <video 
+                        src={newsVideoUrl} 
+                        controls 
+                        className="w-full h-full object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewsVideoUrl('')}
+                        className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app max-w-sm">
+                      <p className="text-text-muted text-[10px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
+                      <VideoUploader 
+                        onVideoUploaded={(base64) => setNewsVideoUrl(base64)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Hashtags Input */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
+                Хэштеги (через запятую)
+              </label>
+              <input 
+                type="text" 
+                value={newsHashtags}
+                onChange={(e) => setNewsHashtags(e.target.value)}
+                placeholder="важно, майнкрафт, релиз..."
+                className="w-full bg-bg-app border border-border-color rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
+              />
+            </div>
+
             {/* Image Upload Selector */}
             <div className="space-y-1.5">
               <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
@@ -846,6 +1071,82 @@ export const NewsView: React.FC = () => {
 
       {/* 2. NEWS LIST GRID */}
       <div className="space-y-6">
+        {/* Filter and Sort Bar */}
+        {news.length > 0 && (
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
+            {allHashtags.length > 0 && (
+              <div className="flex flex-wrap gap-2 items-center bg-bg-card border border-border-color p-2 rounded-[20px] shadow-soft select-none overflow-x-auto max-w-full flex-1">
+                <button
+                  onClick={() => setSelectedHashtag(null)}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                    selectedHashtag === null
+                      ? 'bg-accent-color text-white shadow-soft'
+                      : 'text-text-secondary hover:text-text-primary bg-bg-app border border-border-color/65'
+                  }`}
+                >
+                  Все
+                </button>
+                {allHashtags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedHashtag(tag)}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedHashtag === tag
+                        ? 'bg-accent-color text-white shadow-soft'
+                        : 'text-text-secondary hover:text-text-primary bg-bg-app border border-border-color/65'
+                    }`}
+                  >
+                    <span>#{tag}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Sorting controls */}
+            <div className="flex items-center gap-2 bg-bg-card border border-border-color p-1.5 rounded-[20px] shadow-soft shrink-0 select-none">
+              <span className="text-[9px] font-bold text-text-secondary uppercase tracking-wider pl-1.5 flex items-center gap-1 font-mono">
+                <ArrowUpDown className="w-3 h-3" />
+                <span>Сортировка:</span>
+              </span>
+              <div className="flex gap-1 bg-bg-app p-0.5 rounded-xl border border-border-color/50 text-[9px]">
+                <button
+                  type="button"
+                  onClick={() => setSortBy('default')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    sortBy === 'default'
+                      ? 'bg-accent-color text-white shadow-soft'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  По умолчанию
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy('newest')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    sortBy === 'newest'
+                      ? 'bg-accent-color text-white shadow-soft'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  Сначала новые
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy('hashtags')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    sortBy === 'hashtags'
+                      ? 'bg-accent-color text-white shadow-soft'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  По хэштегам
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {news.length === 0 ? (
           <div className="rounded-[32px] border border-dashed border-border-color p-12 text-center space-y-4 bg-bg-card shadow-soft font-sans">
             <Newspaper className="w-12 h-12 text-text-muted mx-auto animate-pulse" />
@@ -854,9 +1155,23 @@ export const NewsView: React.FC = () => {
               Администратор еще не опубликовал никаких новостей. Загляните сюда позже!
             </p>
           </div>
+        ) : filteredNews.length === 0 ? (
+          <div className="rounded-[32px] border border-dashed border-border-color p-12 text-center space-y-4 bg-bg-card shadow-soft font-sans">
+            <Newspaper className="w-12 h-12 text-text-muted mx-auto animate-pulse" />
+            <h2 className="text-lg font-bold text-text-primary">Новости не найдены</h2>
+            <p className="text-xs text-text-secondary max-w-sm mx-auto leading-relaxed">
+              Нет новостей с хэштегом #{selectedHashtag}.
+            </p>
+            <button
+              onClick={() => setSelectedHashtag(null)}
+              className="px-4 py-2 bg-accent-light hover:bg-accent-color hover:text-white border border-accent-color/20 text-accent-color rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Показать все новости
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
-            {news.map((item) => {
+            {filteredNews.map((item) => {
               const { average } = getNewsAverageRating(item.ratings);
               return (
                 <div 
@@ -873,11 +1188,27 @@ export const NewsView: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                       />
+                    ) : item.videoUrl && getYouTubeThumbnail(item.videoUrl) ? (
+                      <img 
+                        src={getYouTubeThumbnail(item.videoUrl)!} 
+                        alt={item.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
                     ) : (
                       // Placeholder when image is missing
                       <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-2 text-text-muted select-none">
                         <Newspaper className="w-8 h-8 opacity-45 group-hover:scale-110 transition-transform duration-300" />
                         <span className="text-[10px] font-bold tracking-wider font-mono">PISULKA SQUAD</span>
+                      </div>
+                    )}
+
+                    {/* Video badge icon overlay */}
+                    {item.videoUrl && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/35 transition-colors">
+                        <div className="p-2.5 bg-accent-color text-white rounded-full scale-90 group-hover:scale-100 transition-transform shadow-md">
+                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                        </div>
                       </div>
                     )}
                     
@@ -893,7 +1224,7 @@ export const NewsView: React.FC = () => {
                       {/* Meta Info */}
                       <div className="flex items-center justify-between text-[9px] text-text-muted font-mono">
                         <span className="flex items-center gap-1 font-sans">
-                          <Calendar className="w-3 h-3" />
+                           <Calendar className="w-3 h-3" />
                           <span>{formatNewsDate(item.date)}</span>
                         </span>
                         
@@ -918,6 +1249,24 @@ export const NewsView: React.FC = () => {
                       <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-3 font-sans break-words">
                         {item.content}
                       </p>
+
+                      {/* Hashtags */}
+                      {item.hashtags && item.hashtags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {item.hashtags.map((tag) => (
+                            <span
+                              key={tag}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedHashtag(tag);
+                              }}
+                              className="text-[9px] font-semibold text-accent-color hover:underline cursor-pointer bg-accent-light px-1.5 py-0.5 rounded"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       {/* Poll View (Card) */}
                       {item.poll && (
@@ -1007,8 +1356,10 @@ export const NewsView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Full-width hero image */}
-                {selectedArticle.imageUrl && (
+                 {/* Full-width media banner (Video player has priority) */}
+                {selectedArticle.videoUrl ? (
+                  renderNewsVideoPlayer(selectedArticle.videoUrl)
+                ) : selectedArticle.imageUrl ? (
                   <div className="w-full bg-bg-app border-b border-border-color/60 max-h-[420px] flex items-center justify-center overflow-hidden">
                     <img
                       src={selectedArticle.imageUrl}
@@ -1016,7 +1367,7 @@ export const NewsView: React.FC = () => {
                       className="w-full h-full object-contain"
                     />
                   </div>
-                )}
+                ) : null}
 
                 {/* Body */}
                 <div className="p-6 md:p-8 space-y-6">
@@ -1031,6 +1382,17 @@ export const NewsView: React.FC = () => {
                     {selectedArticle.content}
                   </p>
 
+                  {/* Secondary Image if video is playing at the top */}
+                  {selectedArticle.videoUrl && selectedArticle.imageUrl && (
+                    <div className="w-full bg-bg-app border border-border-color/60 rounded-2xl max-h-[360px] flex items-center justify-center overflow-hidden">
+                      <img
+                        src={selectedArticle.imageUrl}
+                        alt={selectedArticle.title}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  )}
+
                   {/* Poll View (Overlay) */}
                   {selectedArticle.poll && (
                     <NewsPollView 
@@ -1041,7 +1403,23 @@ export const NewsView: React.FC = () => {
                     />
                   )}
 
-                  {/* Reactions Panel */}
+                  {/* Article Hashtags */}
+                  {selectedArticle.hashtags && selectedArticle.hashtags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border-color/40">
+                      {selectedArticle.hashtags.map((tag) => (
+                        <span
+                          key={tag}
+                          onClick={() => {
+                            setSelectedHashtag(tag);
+                            closeOverlay();
+                          }}
+                          className="text-[9px] font-bold text-accent-color hover:underline cursor-pointer bg-accent-light px-2.5 py-0.5 rounded-lg border border-accent-color/10"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="pt-2">
                     <h4 className="text-xs font-bold text-text-primary mb-2 font-mono uppercase tracking-wider">Реакции</h4>
                     <NewsReactions
@@ -1086,6 +1464,43 @@ export const NewsView: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Related News */}
+                  {relatedNews.length > 0 && (
+                    <div className="space-y-3 pt-4 border-t border-border-color/40 select-none font-sans">
+                      <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5 font-mono uppercase tracking-wider">
+                        <Film className="w-3.5 h-3.5 text-accent-color" />
+                        <span>Читайте также (Похожие новости)</span>
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {relatedNews.map((item) => {
+                          const { average } = getNewsAverageRating(item.ratings);
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={() => setActiveNewsId(item.id)}
+                              className="p-3 bg-bg-app hover:bg-bg-app/80 border border-border-color hover:border-accent-color/30 rounded-2xl flex flex-col justify-between space-y-2 cursor-pointer transition-all duration-300 group shadow-soft"
+                            >
+                              <div className="space-y-1">
+                                <span className="text-[7px] font-mono font-bold text-accent-color bg-accent-light px-1.5 py-0.2 rounded border border-accent-color/10 w-fit block uppercase tracking-wider">
+                                  {item.tag}
+                                </span>
+                                <h5 className="text-[11px] font-bold text-text-primary group-hover:text-accent-color transition-colors leading-snug line-clamp-2">
+                                  {item.title}
+                                </h5>
+                              </div>
+                              <div className="flex items-center justify-between text-[8px] text-text-muted font-mono pt-1 border-t border-border-color/30">
+                                <span>{new Date(item.date).toLocaleDateString('ru-RU')}</span>
+                                <div className="flex items-center gap-0.5 text-yellow-500 font-bold">
+                                  <span>★ {average > 0 ? average : '0.0'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Comments section */}
                   <div className="space-y-4 pt-2 border-t border-border-color">

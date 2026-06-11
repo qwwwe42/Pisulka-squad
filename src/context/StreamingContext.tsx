@@ -143,14 +143,17 @@ export const DEMO_NEWS: NewsArticle[] = [
     title: 'Открытие Медиа-Портала!',
     content: 'Сегодня мы официально запустили наш собственный онлайн-кинотеатр **varicose-squad**. Добавляйте свои любимые сериалы с Google Диска, отслеживайте время выхода новых серий по таймерам, пишите отзывы в комментариях и делитесь впечатлениями с друзьями!',
     date: new Date('2026-06-07T12:00:00.000Z').toISOString(),
-    tag: '07 ИЮНЯ 2026'
+    tag: '07 ИЮНЯ 2026',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    hashtags: ['кинотеатр', 'релиз', 'важно']
   },
   {
     id: 'news-2',
     title: 'Запуск Minecraft сервера',
     content: 'Наш собственный сервер выживания теперь запущен на версии **1.20.4**! Заходите играть, кооперироваться с друзьями, строить базы и участвовать в регулярных турнирах. Адрес для входа: mc.varicose-squad.ru.',
     date: new Date('2026-06-07T10:00:00.000Z').toISOString(),
-    tag: 'ИГРОВОЙ СЕРВЕР'
+    tag: 'ИГРОВОЙ СЕРВЕР',
+    hashtags: ['майнкрафт', 'сервер', 'игры']
   }
 ];
 
@@ -963,11 +966,44 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const uploadNewsMedia = async (newsItem: Partial<NewsArticle>): Promise<Partial<NewsArticle>> => {
+    const updated = { ...newsItem };
+    
+    if (updated.videoUrl && updated.videoUrl.startsWith('data:video/')) {
+      if (isFirebaseConnectedRef.current) {
+        try {
+          const extension = updated.videoUrl.split(';')[0].split('/')[1]?.split('+')[0] || 'mp4';
+          const storageRef = ref(storage, `news_videos/video-${Date.now()}.${extension}`);
+          await uploadString(storageRef, updated.videoUrl, 'data_url');
+          updated.videoUrl = await getDownloadURL(storageRef);
+        } catch (e) {
+          console.warn('Firebase Storage video upload failed, keeping base64 fallback', e);
+        }
+      }
+    }
+
+    if (updated.imageUrl && updated.imageUrl.startsWith('data:image/')) {
+      if (isFirebaseConnectedRef.current) {
+        try {
+          const extension = updated.imageUrl.split(';')[0].split('/')[1]?.split('+')[0] || 'webp';
+          const storageRef = ref(storage, `news_images/image-${Date.now()}.${extension}`);
+          await uploadString(storageRef, updated.imageUrl, 'data_url');
+          updated.imageUrl = await getDownloadURL(storageRef);
+        } catch (e) {
+          console.warn('Firebase Storage image upload failed, keeping base64 fallback', e);
+        }
+      }
+    }
+
+    return updated;
+  };
+
   const addNews = async (newsData: Omit<NewsArticle, 'id'>): Promise<string> => {
+    const uploadedData = await uploadNewsMedia(newsData);
     const newNews: NewsArticle = {
-      ...newsData,
+      ...uploadedData,
       id: 'news-' + Date.now().toString()
-    };
+    } as NewsArticle;
 
     const updatedNews = [newNews, ...news];
     const sortedNews = sortNewsItems(updatedNews);
@@ -986,9 +1022,10 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updateNews = async (newsId: string, updatedFields: Partial<NewsArticle>) => {
+    const uploadedData = await uploadNewsMedia(updatedFields);
     const updatedNews = news.map((item) => {
       if (item.id === newsId) {
-        return { ...item, ...updatedFields };
+        return { ...item, ...uploadedData };
       }
       return item;
     });

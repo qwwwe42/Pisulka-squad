@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode, EmojiItem } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
+import { VideoUploader } from './VideoUploader';
 import { AdminBunkerDB } from './AdminBunkerDB';
 
 const generateId = (prefix: string) => `${prefix}-${Date.now()}`;
@@ -206,6 +207,9 @@ export const AdminPanel: React.FC = () => {
   const [newsTag, setNewsTag] = useState('');
   const [newsContent, setNewsContent] = useState('');
   const [newsImage, setNewsImage] = useState('');
+  const [newsVideoUrl, setNewsVideoUrl] = useState('');
+  const [newsVideoSource, setNewsVideoSource] = useState<'link' | 'upload'>('link');
+  const [newsHashtags, setNewsHashtags] = useState('');
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
 
   // Reactions Settings Form State
@@ -492,13 +496,20 @@ export const AdminPanel: React.FC = () => {
       return;
     }
 
+    const hashtagsArray = newsHashtags
+      .split(',')
+      .map(tag => tag.trim().replace(/^#/, ''))
+      .filter(tag => tag.length > 0);
+
     try {
       if (editingNewsId) {
         await updateNews(editingNewsId, {
           title: newsTitle.trim(),
           content: newsContent.trim(),
           tag: newsTag.trim() || 'НОВОСТЬ',
-          imageUrl: newsImage || undefined
+          imageUrl: newsImage || undefined,
+          videoUrl: newsVideoUrl.trim() || undefined,
+          hashtags: hashtagsArray.length > 0 ? hashtagsArray : undefined
         });
         showStatusMsg('Новость успешно обновлена!');
         setEditingNewsId(null);
@@ -508,6 +519,8 @@ export const AdminPanel: React.FC = () => {
           content: newsContent.trim(),
           tag: newsTag.trim() || 'НОВОСТЬ',
           imageUrl: newsImage || undefined,
+          videoUrl: newsVideoUrl.trim() || undefined,
+          hashtags: hashtagsArray.length > 0 ? hashtagsArray : undefined,
           date: new Date().toISOString()
         });
         showStatusMsg('Новость успешно опубликована!');
@@ -517,6 +530,9 @@ export const AdminPanel: React.FC = () => {
       setNewsContent('');
       setNewsTag('');
       setNewsImage('');
+      setNewsVideoUrl('');
+      setNewsVideoSource('link');
+      setNewsHashtags('');
     } catch {
       showStatusMsg('Ошибка при сохранении новости', 'error');
     }
@@ -528,6 +544,9 @@ export const AdminPanel: React.FC = () => {
     setNewsContent(item.content);
     setNewsTag(item.tag);
     setNewsImage(item.imageUrl || '');
+    setNewsVideoUrl(item.videoUrl || '');
+    setNewsVideoSource(item.videoUrl && item.videoUrl.startsWith('data:video/') ? 'upload' : 'link');
+    setNewsHashtags(item.hashtags ? item.hashtags.join(', ') : '');
   };
 
   const handleAddEmoji = async (e: React.FormEvent) => {
@@ -2322,6 +2341,93 @@ export const AdminPanel: React.FC = () => {
                 />
               </div>
 
+              {/* Video Input Selector */}
+              <div className="space-y-1.5 font-sans">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Видео к новости (необязательно)
+                </label>
+                <div className="flex gap-2 bg-slate-950 border border-slate-800 p-0.5 rounded-lg text-[9px] font-semibold w-fit mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewsVideoSource('link');
+                      if (newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
+                    }}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                      newsVideoSource === 'link'
+                        ? 'bg-purple-650 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Ссылка
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewsVideoSource('upload');
+                      if (!newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
+                    }}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                      newsVideoSource === 'upload'
+                        ? 'bg-purple-650 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Загрузить файл
+                  </button>
+                </div>
+
+                {newsVideoSource === 'link' ? (
+                  <input 
+                    type="url" 
+                    value={newsVideoUrl}
+                    onChange={(e) => setNewsVideoUrl(e.target.value)}
+                    placeholder="Вставьте ссылку на видео (YouTube, Google Drive, MP4)..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-purple-500/50"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    {newsVideoUrl && newsVideoUrl.startsWith('data:video/') ? (
+                      <div className="relative aspect-video max-w-sm rounded-xl border border-slate-800 overflow-hidden bg-slate-950">
+                        <video 
+                          src={newsVideoUrl} 
+                          controls 
+                          className="w-full h-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewsVideoUrl('')}
+                          className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-slate-800 rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-slate-950 max-w-sm">
+                        <p className="text-slate-500 text-[10px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
+                        <VideoUploader 
+                          onVideoUploaded={(base64) => setNewsVideoUrl(base64)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Hashtags Input */}
+              <div className="space-y-1.5 font-sans">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Хэштеги (через запятую)
+                </label>
+                <input 
+                  type="text" 
+                  value={newsHashtags}
+                  onChange={(e) => setNewsHashtags(e.target.value)}
+                  placeholder="важно, майнкрафт, релиз..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+
               {/* Image Upload Selector */}
               <div className="space-y-1.5 font-sans">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
@@ -2364,6 +2470,9 @@ export const AdminPanel: React.FC = () => {
                       setNewsContent('');
                       setNewsTag('');
                       setNewsImage('');
+                      setNewsVideoUrl('');
+                      setNewsVideoSource('link');
+                      setNewsHashtags('');
                     }}
                     className="px-5 py-2.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-semibold cursor-pointer font-sans font-sans"
                   >

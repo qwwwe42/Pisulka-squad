@@ -69,6 +69,8 @@ export interface NewsArticle {
   date: string; // ISO string
   tag: string; // e.g. "07 ИЮНЯ 2026" or "ВАЖНО"
   imageUrl?: string; // Optional image url/base64
+  videoUrl?: string; // Optional video url/base64/embed
+  hashtags?: string[]; // Optional hashtags for classification
   ratings?: Record<string, number>; // userId -> rating (1-5)
   comments?: Comment[]; // User comments list
   reactions?: Record<string, string[]>; // emojiId -> array of userIds who reacted

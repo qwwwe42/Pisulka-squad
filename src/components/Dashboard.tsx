@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { ShowCard } from './ShowCard';
-import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2 } from 'lucide-react';
+import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2, Newspaper } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
+import { VideoUploader } from './VideoUploader';
 
 interface DashboardProps {
   onSelectShow: (showId: string) => void;
@@ -93,6 +94,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
   const [newsTag, setNewsTag] = useState('');
   const [newsContent, setNewsContent] = useState('');
   const [newsImage, setNewsImage] = useState('');
+  const [newsVideoUrl, setNewsVideoUrl] = useState('');
+  const [newsVideoSource, setNewsVideoSource] = useState<'link' | 'upload'>('link');
+  const [newsHashtags, setNewsHashtags] = useState('');
   const [isSubmittingNews, setIsSubmittingNews] = useState(false);
   const [newsSuccess, setNewsSuccess] = useState(false);
   
@@ -460,6 +464,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                 setNewsTag('');
                 setNewsContent('');
                 setNewsImage('');
+                setNewsVideoUrl('');
+                setNewsVideoSource('link');
+                setNewsHashtags('');
                 setNewsSuccess(false);
               }}
               className="px-3.5 py-1.5 bg-accent-color hover:bg-accent-hover text-white rounded-xl text-[10px] font-bold shadow-soft transition-all cursor-pointer flex items-center gap-1 active:scale-95 duration-200"
@@ -479,14 +486,55 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                 >
                   <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
                   <h4 className="text-xs font-bold text-text-primary">{item.title}</h4>
-                  {item.imageUrl && (
-                    <div className="rounded-xl overflow-hidden border border-border-color/60 aspect-video max-h-36 w-full bg-bg-app flex items-center justify-start">
+                  {item.imageUrl ? (
+                    <div className="rounded-xl overflow-hidden border border-border-color/60 aspect-video max-h-36 w-full bg-bg-app flex items-center justify-start relative shrink-0">
                       <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                      {item.videoUrl && (
+                        <div className="absolute inset-0 bg-black/15 flex items-center justify-center">
+                          <div className="p-2 bg-accent-color text-white rounded-full scale-95 shadow-md">
+                            <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ) : item.videoUrl ? (
+                    <div className="rounded-xl overflow-hidden border border-border-color/60 aspect-video max-h-36 w-full bg-bg-app flex items-center justify-start relative shrink-0">
+                      {(() => {
+                        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                        const match = item.videoUrl.match(regExp);
+                        const ytThumb = (match && match[2].length === 11) ? `https://img.youtube.com/vi/${match[2]}/0.jpg` : null;
+                        return ytThumb ? (
+                          <img src={ytThumb} alt={item.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-1.5 text-text-muted select-none">
+                            <Newspaper className="w-6 h-6 opacity-45" />
+                            <span className="text-[9px] font-bold tracking-wider font-mono">PISULKA SQUAD</span>
+                          </div>
+                        );
+                      })()}
+                      <div className="absolute inset-0 bg-black/15 flex items-center justify-center">
+                        <div className="p-2 bg-accent-color text-white rounded-full scale-95 shadow-md">
+                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
                     {item.content}
                   </p>
+                  {/* Hashtags */}
+                  {item.hashtags && item.hashtags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {item.hashtags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[8px] font-bold text-accent-color bg-accent-light px-1.5 py-0.5 rounded border border-accent-color/5"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -500,6 +548,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   setNewsTag('');
                   setNewsContent('');
                   setNewsImage('');
+                  setNewsVideoUrl('');
+                  setNewsVideoSource('link');
+                  setNewsHashtags('');
                   setNewsSuccess(false);
                 }}
                 className="px-4 py-2 bg-accent-light hover:bg-accent-color hover:text-white border border-accent-color/20 text-accent-color rounded-xl text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95"
@@ -619,12 +670,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       return;
                     }
                     setIsSubmittingNews(true);
+                    const hashtagsArray = newsHashtags
+                      .split(',')
+                      .map(tag => tag.trim().replace(/^#/, ''))
+                      .filter(tag => tag.length > 0);
+
                     try {
                       await addNews({
                         title: newsTitle.trim(),
                         content: newsContent.trim(),
                         tag: newsTag.trim() || 'НОВОСТЬ',
                         imageUrl: newsImage || undefined,
+                        videoUrl: newsVideoUrl.trim() || undefined,
+                        hashtags: hashtagsArray.length > 0 ? hashtagsArray : undefined,
                         date: new Date().toISOString()
                       });
                       setNewsSuccess(true);
@@ -679,6 +737,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       onChange={(e) => setNewsContent(e.target.value)}
                       className="w-full ide-input min-h-24 resize-none py-2.5 leading-relaxed"
                       required
+                    />
+                  </div>
+
+                  {/* Video Input Selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                      Видео к новости (необязательно)
+                    </label>
+                    <div className="flex gap-2 bg-bg-app border border-border-color p-0.5 rounded-lg text-[9px] font-semibold w-fit mb-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewsVideoSource('link');
+                          if (newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
+                        }}
+                        className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                          newsVideoSource === 'link'
+                            ? 'bg-accent-color text-white shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary'
+                        }`}
+                      >
+                        Ссылка
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewsVideoSource('upload');
+                          if (!newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
+                        }}
+                        className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
+                          newsVideoSource === 'upload'
+                            ? 'bg-accent-color text-white shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary'
+                        }`}
+                      >
+                        Загрузить файл
+                      </button>
+                    </div>
+
+                    {newsVideoSource === 'link' ? (
+                      <input 
+                        type="url" 
+                        value={newsVideoUrl}
+                        onChange={(e) => setNewsVideoUrl(e.target.value)}
+                        placeholder="Вставьте ссылку на видео (YouTube, Google Drive, MP4)..."
+                        className="w-full ide-input"
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        {newsVideoUrl && newsVideoUrl.startsWith('data:video/') ? (
+                          <div className="relative aspect-video rounded-xl border border-border-color overflow-hidden bg-bg-app">
+                            <video 
+                              src={newsVideoUrl} 
+                              controls 
+                              className="w-full h-full object-contain"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setNewsVideoUrl('')}
+                              className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app">
+                            <p className="text-text-muted text-[10px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
+                            <VideoUploader 
+                              onVideoUploaded={(base64) => setNewsVideoUrl(base64)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hashtags Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                      Хэштеги (через запятую)
+                    </label>
+                    <input 
+                      type="text" 
+                      value={newsHashtags}
+                      onChange={(e) => setNewsHashtags(e.target.value)}
+                      placeholder="важно, майнкрафт, релиз..."
+                      className="w-full ide-input"
                     />
                   </div>
 
