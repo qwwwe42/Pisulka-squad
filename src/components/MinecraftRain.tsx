@@ -72,7 +72,33 @@ export const MinecraftRain: React.FC<MinecraftRainProps> = ({ intensity = 'norma
     };
 
     const draw = () => {
+      ctx.save();
       ctx.clearRect(0, 0, width, height);
+
+      const container = document.querySelector('.minecraft-view-container');
+      const containerRect = container ? container.getBoundingClientRect() : null;
+
+      if (containerRect) {
+        ctx.beginPath();
+        ctx.rect(0, 0, width, height);
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(
+            containerRect.left,
+            containerRect.top,
+            containerRect.width,
+            containerRect.height,
+            32
+          );
+        } else {
+          ctx.rect(
+            containerRect.left,
+            containerRect.top,
+            containerRect.width,
+            containerRect.height
+          );
+        }
+        ctx.clip('evenodd');
+      }
 
       for (let i = 0; i < drops.length; i++) {
         const drop = drops[i];
@@ -102,6 +128,7 @@ export const MinecraftRain: React.FC<MinecraftRainProps> = ({ intensity = 'norma
         }
       }
 
+      ctx.restore();
       animationFrameId = requestAnimationFrame(draw);
     };
 
