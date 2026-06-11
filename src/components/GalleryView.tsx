@@ -69,10 +69,10 @@ export const GalleryView: React.FC = () => {
   const activePhoto = activePhotoIndex !== null ? gallery[activePhotoIndex] : null;
 
   return (
-    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] glass-panel">
+    <div className="page-section glass-panel">
       
       {/* HEADER SECTION */}
-      <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 md:p-8 rounded-[32px] bg-bg-card border border-border-color overflow-hidden shadow-soft">
+      <div className="section-enter relative flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 md:p-8 rounded-[32px] bg-bg-card border border-border-color overflow-hidden shadow-soft">
         <div className="absolute top-0 right-0 w-80 h-80 bg-accent-color/5 rounded-full filter blur-[80px] pointer-events-none -mr-20 -mt-20" />
         <div className="absolute bottom-0 left-0 w-60 h-60 bg-accent-color/5 rounded-full filter blur-[60px] pointer-events-none -ml-10 -mb-10" />
 
@@ -96,15 +96,15 @@ export const GalleryView: React.FC = () => {
 
       {/* GALLERY GRID */}
       {gallery.length === 0 ? (
-        <div className="text-center py-20 rounded-[32px] border border-dashed border-border-color bg-bg-card shadow-soft text-text-muted text-sm font-semibold">
+        <div className="section-enter section-enter-delay-1 text-center py-20 rounded-[32px] border border-dashed border-border-color bg-bg-card shadow-soft text-text-muted text-sm font-semibold">
           <p>Галерея пока пуста. Будьте первым, кто добавит фото!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="section-enter section-enter-delay-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {gallery.map((item, index) => (
             <div 
               key={item.id}
-              className="group relative bg-bg-card border border-border-color hover:border-accent-color/30 rounded-[24px] overflow-hidden transition-all duration-300 shadow-soft hover:shadow-hover hover:scale-[1.01] flex flex-col"
+              className="item-enter group relative bg-bg-card border border-border-color hover:border-accent-color/30 rounded-[24px] overflow-hidden transition-all duration-300 shadow-soft hover:shadow-hover hover:scale-[1.01] flex flex-col"
             >
               {/* Image Container */}
               <div 
@@ -162,8 +162,8 @@ export const GalleryView: React.FC = () => {
 
       {/* UPLOAD PHOTO MODAL */}
       {isUploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
-          <div className="w-full max-w-md bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 animate-[scaleIn_0.2s_ease-out]">
+        <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs">
+          <div className="modal-content-enter w-full max-w-md bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4">
             
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">
@@ -263,7 +263,7 @@ export const GalleryView: React.FC = () => {
 
       {/* LIGHTBOX / FULLSCREEN VIEWER */}
       {activePhotoIndex !== null && activePhoto && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col animate-[fadeIn_0.15s_ease-out]">
+        <div className="modal-overlay-enter fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col">
           {/* Lightbox Header */}
           <div className="h-16 px-6 border-b border-border-color flex items-center justify-between shrink-0 bg-black/45 backdrop-blur-xs">
             <div className="space-y-0.5 truncate max-w-[70%]">
@@ -347,8 +347,8 @@ export const GalleryView: React.FC = () => {
 
       {/* CUSTOM DELETE CONFIRMATION MODAL */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
-          <div className="w-full max-w-sm bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 animate-[scaleIn_0.2s_ease-out]">
+        <div className="modal-overlay-enter fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-xs">
+          <div className="modal-content-enter w-full max-w-sm bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
@@ -396,8 +396,8 @@ export const GalleryView: React.FC = () => {
 
       {/* CUSTOM ADMIN REQUIRED WARNING MODAL */}
       {showAdminRequired && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
-          <div className="w-full max-w-sm bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 animate-[scaleIn_0.2s_ease-out]">
+        <div className="modal-overlay-enter fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-xs">
+          <div className="modal-content-enter w-full max-w-sm bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center justify-center shrink-0">
                 <User className="w-5 h-5" />

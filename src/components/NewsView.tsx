@@ -6,7 +6,7 @@ import {
   Award, X, CornerDownRight, Plus, Play, Film, ArrowUpDown
 } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
-import { VideoUploader } from './VideoUploader';
+import { NewsVideoField } from './NewsVideoField';
 import { getGoogleDriveEmbedUrl } from '../utils/drive';
 
 // YouTube utilities
@@ -416,6 +416,8 @@ export const NewsView: React.FC = () => {
   const [newsVideoUrl, setNewsVideoUrl] = useState('');
   const [newsVideoSource, setNewsVideoSource] = useState<'link' | 'upload'>('link');
   const [newsHashtags, setNewsHashtags] = useState('');
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
 
   // Filtering local states
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
@@ -720,10 +722,10 @@ export const NewsView: React.FC = () => {
 
   // ── Render general feed layout (Hero, stats, list/grid) ──────────────────
   return (
-    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] glass-panel">
+    <div className="page-section glass-panel">
       
       {/* 1. HERO BANNER & STATS */}
-      <div className="relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between shadow-soft">
+      <div className="section-enter relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between shadow-soft">
         <div className="absolute inset-0 z-0">
           <div className="w-full h-full bg-gradient-to-tr from-accent-light via-bg-card/50 to-bg-card opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-t from-bg-card via-bg-card/85 to-transparent" />
@@ -772,7 +774,7 @@ export const NewsView: React.FC = () => {
       </div>
 
       {/* 1.5 PUBLISH NEWS BUTTON / FORM */}
-      <div className="bg-bg-card border border-border-color rounded-[32px] p-5 md:p-6 shadow-soft space-y-4 animate-[fadeIn_0.2s_ease-out]">
+      <div className="section-enter section-enter-delay-1 bg-bg-card border border-border-color rounded-[32px] p-5 md:p-6 shadow-soft space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="p-2.5 rounded-xl bg-accent-light border border-accent-color/20 text-accent-color shrink-0 flex items-center justify-center">
@@ -797,7 +799,7 @@ export const NewsView: React.FC = () => {
         </div>
 
         {showWriteForm && (
-          <form onSubmit={handlePublishNews} className="space-y-4 pt-4 border-t border-border-color animate-[fadeIn_0.2s_ease-out] font-sans">
+          <form onSubmit={handlePublishNews} className="space-y-4 pt-4 border-t border-border-color animate-fade-in font-sans">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2 space-y-1.5">
                 <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono block">Заголовок новости *</label>
@@ -850,7 +852,7 @@ export const NewsView: React.FC = () => {
               </label>
 
               {includePoll && (
-                <div className="bg-bg-app border border-border-color p-4 rounded-xl space-y-4 animate-[fadeIn_0.2s_ease-out]">
+                <div className="bg-bg-app border border-border-color p-4 rounded-xl space-y-4 animate-fade-in">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider font-mono block">Вопрос опроса *</label>
                     <input 
@@ -938,72 +940,17 @@ export const NewsView: React.FC = () => {
               <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
                 Видео к новости (необязательно)
               </label>
-              <div className="flex gap-2 bg-bg-app border border-border-color p-0.5 rounded-lg text-[9px] font-semibold w-fit mb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewsVideoSource('link');
-                    if (newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
-                  }}
-                  className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                    newsVideoSource === 'link'
-                      ? 'bg-accent-color text-white shadow-sm'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  Ссылка
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewsVideoSource('upload');
-                    if (!newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
-                  }}
-                  className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                    newsVideoSource === 'upload'
-                      ? 'bg-accent-color text-white shadow-sm'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  Загрузить файл
-                </button>
-              </div>
-
-              {newsVideoSource === 'link' ? (
-                <input 
-                  type="url" 
-                  value={newsVideoUrl}
-                  onChange={(e) => setNewsVideoUrl(e.target.value)}
-                  placeholder="Вставьте ссылку на видео (YouTube, Google Drive, MP4)..."
-                  className="w-full bg-bg-app border border-border-color rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-color/50 focus:ring-1 focus:ring-accent-color/40 transition-all font-sans"
-                />
-              ) : (
-                <div className="space-y-2">
-                  {newsVideoUrl && newsVideoUrl.startsWith('data:video/') ? (
-                    <div className="relative aspect-video max-w-sm rounded-xl border border-border-color overflow-hidden bg-bg-app">
-                      <video 
-                        src={newsVideoUrl} 
-                        controls 
-                        className="w-full h-full object-contain"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setNewsVideoUrl('')}
-                        className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app max-w-sm">
-                      <p className="text-text-muted text-[10px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
-                      <VideoUploader 
-                        onVideoUploaded={(base64) => setNewsVideoUrl(base64)}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+              <NewsVideoField
+                videoUrl={newsVideoUrl}
+                onVideoUrlChange={setNewsVideoUrl}
+                source={newsVideoSource}
+                onSourceChange={setNewsVideoSource}
+                disabled={isVideoUploading}
+                onUploadStateChange={(uploading, progress) => {
+                  setIsVideoUploading(uploading);
+                  setVideoUploadProgress(progress);
+                }}
+              />
             </div>
 
             {/* Hashtags Input */}
@@ -1059,10 +1006,13 @@ export const NewsView: React.FC = () => {
               </div>
               <button
                 type="submit"
-                className="bg-accent-color hover:bg-accent-hover text-white rounded-xl px-4 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-soft active:scale-95"
+                disabled={isVideoUploading}
+                className="bg-accent-color hover:bg-accent-hover text-white rounded-xl px-4 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-soft active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Опубликовать</span>
+                <span>
+                  {isVideoUploading ? `Загрузка видео... ${videoUploadProgress}%` : 'Опубликовать'}
+                </span>
               </button>
             </div>
           </form>
@@ -1070,7 +1020,7 @@ export const NewsView: React.FC = () => {
       </div>
 
       {/* 2. NEWS LIST GRID */}
-      <div className="space-y-6">
+      <div className="section-enter section-enter-delay-2 space-y-6">
         {/* Filter and Sort Bar */}
         {news.length > 0 && (
           <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
@@ -1177,7 +1127,7 @@ export const NewsView: React.FC = () => {
                 <div 
                   key={item.id} 
                   onClick={() => setActiveNewsId(item.id)}
-                  className="bg-bg-card border border-border-color rounded-[24px] overflow-hidden flex flex-col transition-all duration-300 hover:border-accent-color/30 hover:scale-[1.01] hover:shadow-hover cursor-pointer group shadow-soft"
+                  className="item-enter bg-bg-card border border-border-color rounded-[24px] overflow-hidden flex flex-col transition-all duration-300 hover:border-accent-color/30 hover:scale-[1.01] hover:shadow-hover cursor-pointer group shadow-soft"
                 >
                   {/* Card Image */}
                   <div className="relative aspect-[16/9] w-full bg-bg-app border-b border-border-color/60 overflow-hidden shrink-0">
@@ -1188,13 +1138,38 @@ export const NewsView: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                       />
-                    ) : item.videoUrl && getYouTubeThumbnail(item.videoUrl) ? (
-                      <img 
-                        src={getYouTubeThumbnail(item.videoUrl)!} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        loading="lazy"
-                      />
+                    ) : item.videoUrl ? (
+                      (() => {
+                        const ytThumb = getYouTubeThumbnail(item.videoUrl);
+                        if (ytThumb) {
+                          return (
+                            <img 
+                              src={ytThumb} 
+                              alt={item.title} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              loading="lazy"
+                            />
+                          );
+                        }
+                        const isDirect = item.videoUrl && !getYouTubeEmbedUrl(item.videoUrl) && !getGoogleDriveEmbedUrl(item.videoUrl);
+                        if (isDirect) {
+                          return (
+                            <video 
+                              src={item.videoUrl} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              preload="metadata"
+                              muted
+                              playsInline
+                            />
+                          );
+                        }
+                        return (
+                          <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-2 text-text-muted select-none">
+                            <Newspaper className="w-8 h-8 opacity-45 group-hover:scale-110 transition-transform duration-300" />
+                            <span className="text-[10px] font-bold tracking-wider font-mono">VARICOSE SQUAD</span>
+                          </div>
+                        );
+                      })()
                     ) : (
                       // Placeholder when image is missing
                       <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-2 text-text-muted select-none">
@@ -1303,10 +1278,10 @@ export const NewsView: React.FC = () => {
       ══════════════════════════════════════════════════════════════ */}
       {activeNewsId && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] overflow-y-auto"
+          className="modal-overlay-enter fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
         >
-          <div className="relative w-full max-w-3xl mx-auto my-6 px-4 font-sans">
+          <div className="modal-content-enter relative w-full max-w-3xl mx-auto my-6 px-4 font-sans">
 
             {/* ── Close button (top-right, always visible) ── */}
             <button

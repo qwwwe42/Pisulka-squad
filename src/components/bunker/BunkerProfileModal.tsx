@@ -19,8 +19,8 @@ export const BunkerProfileModal: React.FC<Props> = ({ profile, onClose, onSave }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out] p-4">
-      <div className="w-full max-w-md bg-bg-card border border-border-color rounded-3xl p-6 shadow-soft space-y-6">
+    <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+      <div className="modal-content-enter w-full max-w-md bg-bg-card border border-border-color rounded-3xl p-6 shadow-soft space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-extrabold text-text-primary tracking-tight">Профиль Игрока</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-app transition-colors cursor-pointer">

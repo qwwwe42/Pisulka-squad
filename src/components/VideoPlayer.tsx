@@ -519,7 +519,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
           )}
 
           {loadError && !html5Error && (
-            <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center text-center p-6 z-35 animate-[scaleIn_0.2s_ease-out] space-y-4">
+            <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center text-center p-6 z-35 animate-scale-in space-y-4">
               <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto" aria-hidden="true" />
               <p className="text-sm text-slate-300 font-medium max-w-sm">{loadError}</p>
               <div className="flex gap-3">
@@ -628,9 +628,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
       {selectedStill && (
         <div 
           onClick={() => setSelectedStill(null)}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/92 backdrop-blur-xs cursor-pointer animate-[fadeIn_0.15s_ease-out]"
+          className="modal-overlay-enter fixed inset-0 z-[60] flex items-center justify-center bg-black/92 backdrop-blur-xs cursor-pointer"
         >
-          <div className="relative max-w-5xl max-h-[85vh] w-[90%] h-[90%] flex items-center justify-center">
+          <div className="modal-content-enter relative max-w-5xl max-h-[85vh] w-[90%] h-[90%] flex items-center justify-center">
             <button 
               onClick={() => setSelectedStill(null)}
               className="absolute -top-10 right-0 p-2 text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg cursor-pointer"

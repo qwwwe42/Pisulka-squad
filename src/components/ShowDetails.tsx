@@ -183,7 +183,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
   };
 
   return (
-    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] glass-panel">
+    <div className="page-section glass-panel">
       
       {/* Back Button */}
       {!isEpisodeActive && (
@@ -198,7 +198,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
 
       {/* Banner / Poster Info Row */}
       {!isEpisodeActive && (
-        <div className="relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card shadow-soft">
+        <div className="section-enter relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card shadow-soft">
           
           {/* Cover background image */}
           <div className="absolute inset-0 z-0">
@@ -328,7 +328,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
 
       {/* Episodes Section */}
       {!isEpisodeActive && (
-        <div className="space-y-4">
+        <div className="section-enter section-enter-delay-1 space-y-4">
           <div className="border-b border-border-color pb-3 flex items-center justify-between">
             <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2 font-mono">
               <Tv className="w-4 h-4 text-accent-color" />
@@ -462,7 +462,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
 
       {/* Cast / Actors Section */}
       {show.actors && show.actors.length > 0 && (
-        <div className="space-y-4">
+        <div className="section-enter section-enter-delay-2 space-y-4">
           <div className="border-b border-border-color pb-3 flex items-center justify-between">
             <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2 font-mono">
               <Users className="w-4 h-4 text-accent-color" />
@@ -512,7 +512,7 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
 
       {/* Comments Section */}
       {!isEpisodeActive && show && (
-        <div className="space-y-4">
+        <div className="section-enter section-enter-delay-3 space-y-4">
           <div className="border-b border-border-color pb-3 flex items-center justify-between">
             <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2 font-mono">
               <MessageSquare className="w-4 h-4 text-accent-color" />
@@ -625,8 +625,8 @@ export const ShowDetails: React.FC<ShowDetailsProps> = ({ showId, onBack, onSele
 
 
       {showTrailerModal && show.trailerUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
-          <div className="relative w-full max-w-4xl aspect-[16/9] bg-black border border-border-color rounded-[32px] overflow-hidden shadow-hover m-4">
+        <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs">
+          <div className="modal-content-enter relative w-full max-w-4xl aspect-[16/9] bg-black border border-border-color rounded-[32px] overflow-hidden shadow-hover m-4">
             <button
               onClick={() => setShowTrailerModal(false)}
               className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-bg-card border border-border-color text-text-secondary hover:text-text-primary hover:border-accent-color/30 transition-all cursor-pointer"

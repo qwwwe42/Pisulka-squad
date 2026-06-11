@@ -98,7 +98,7 @@ export const BunkerPlaying: React.FC<Props> = ({ room, currentUserId, onRevealTr
   };
 
   return (
-    <div className="p-2 sm:p-4 md:p-6 bg-bg-sidebar border border-border-sidebar backdrop-blur-md rounded-[1.5rem] shadow-2xl flex flex-col gap-4 animate-[fadeIn_0.3s_ease-out] relative pb-8">
+    <div className="page-section p-2 sm:p-4 md:p-6 bg-bg-sidebar border border-border-sidebar backdrop-blur-md rounded-[1.5rem] shadow-2xl flex flex-col gap-4 relative pb-8">
       
       {/* 1. Top Bar (Sticky) */}
       <div className="bg-bg-card border border-border-color p-4 rounded-3xl shadow-soft sticky top-4 z-40 flex flex-col md:flex-row items-center justify-between gap-4">

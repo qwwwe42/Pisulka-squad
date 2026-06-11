@@ -81,10 +81,10 @@ export const MinecraftView: React.FC = () => {
   const players = minecraftConfig.players || DEFAULT_PLAYERS;
 
   return (
-    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] minecraft-view-container glass-panel">
+    <div className="page-section space-y-6 minecraft-view-container glass-panel">
       {/* Status Message Toast */}
       {statusMsg && (
-        <div className="fixed top-4 right-4 z-50 bg-bg-card border border-emerald-500/30 text-emerald-500 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-soft flex items-center gap-2 animate-[fadeIn_0.15s_ease-out]">
+        <div className="toast-enter fixed top-4 right-4 z-50 bg-bg-card border border-emerald-500/30 text-emerald-500 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-soft flex items-center gap-2">
           <Check className="w-4 h-4" />
           <span>{statusMsg}</span>
         </div>
@@ -134,7 +134,7 @@ export const MinecraftView: React.FC = () => {
       )}
 
       {/* Banner / Hero Section */}
-      <div className="relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between shadow-soft">
+      <div className="section-enter relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center justify-between shadow-soft">
         <div className="absolute inset-0 z-0">
           <div className="w-full h-full bg-gradient-to-tr from-accent-light via-bg-card/50 to-bg-card opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-t from-bg-card via-bg-card/85 to-transparent" />
@@ -211,7 +211,7 @@ export const MinecraftView: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Columns - Rules and Instructions */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="section-enter section-enter-delay-1 lg:col-span-2 space-y-6">
           {/* How to Connect */}
           <div className="bg-bg-card border border-border-color rounded-3xl p-6 space-y-4 shadow-soft">
             <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2 border-b border-border-color pb-3 font-mono">
@@ -365,7 +365,7 @@ export const MinecraftView: React.FC = () => {
         </div>
 
         {/* Right Column - Online Players */}
-        <div className="bg-bg-card border border-border-color rounded-3xl p-6 space-y-4 h-fit shadow-soft">
+        <div className="section-enter section-enter-delay-2 bg-bg-card border border-border-color rounded-3xl p-6 space-y-4 h-fit shadow-soft">
           <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2 border-b border-border-color pb-3 font-mono">
             <Users className="w-4 h-4 text-accent-color" />
             <span>В сети ({isEditingMode ? editPlayers.filter(p => p.online).length : players.filter(p => p.online).length})</span>

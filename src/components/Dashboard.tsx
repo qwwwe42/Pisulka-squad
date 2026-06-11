@@ -3,7 +3,7 @@ import { useStreaming } from '../context/StreamingContext';
 import { ShowCard } from './ShowCard';
 import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2, Newspaper, ChevronLeft, ChevronRight, Tv } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
-import { VideoUploader } from './VideoUploader';
+import { NewsVideoField } from './NewsVideoField';
 import { LiveCoWatchWidget } from './LiveCoWatchWidget';
 
 interface DashboardProps {
@@ -105,6 +105,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
   const [isSubmittingNews, setIsSubmittingNews] = useState(false);
   const [newsSuccess, setNewsSuccess] = useState(false);
   const newsModalRef = useRef<HTMLDivElement>(null);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
 
   // Focus trap and Escape close for news modal
   useEffect(() => {
@@ -250,7 +252,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
   });
 
   return (
-    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] glass-panel">
+    <div className="page-section space-y-8 glass-panel">
       
       {/* EVENT COUNTDOWN TIMER BANNER */}
       {mode === 'home' && eventTimerConfig && eventTimerConfig.isActive && (
@@ -316,7 +318,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   </div>
                 </div>
               ) : (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-6 py-4 text-center backdrop-blur-sm animate-[scaleIn_0.3s_ease-out] shadow-md shadow-emerald-950/10">
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-6 py-4 text-center backdrop-blur-sm animate-scale-in shadow-md shadow-emerald-950/10">
                   <span className="text-lg md:text-xl font-black text-emerald-400 uppercase tracking-wider block drop-shadow-md animate-pulse">
                     {eventTimerConfig.finishText}
                   </span>
@@ -504,12 +506,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
 
             {/* Left Fade Gradient */}
             {canScrollLeft && (
-              <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-bg-app via-bg-app/40 to-transparent pointer-events-none z-10 animate-[fadeIn_0.2s_ease-out]" />
+              <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-bg-app via-bg-app/40 to-transparent pointer-events-none z-10 animate-fade-in" />
             )}
 
             {/* Right Fade Gradient */}
             {canScrollRight && (
-              <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-bg-app via-bg-app/40 to-transparent pointer-events-none z-10 animate-[fadeIn_0.2s_ease-out]" />
+              <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-bg-app via-bg-app/40 to-transparent pointer-events-none z-10 animate-fade-in" />
             )}
 
             <div 
@@ -712,9 +714,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
                         const match = item.videoUrl.match(regExp);
                         const ytThumb = (match && match[2].length === 11) ? `https://img.youtube.com/vi/${match[2]}/0.jpg` : null;
-                        return ytThumb ? (
-                          <img src={ytThumb} alt={item.title} className="w-full h-full object-cover" />
-                        ) : (
+                        if (ytThumb) {
+                          return <img src={ytThumb} alt={item.title} className="w-full h-full object-cover" />;
+                        }
+                        const isDirect = item.videoUrl && !item.videoUrl.match(regExp) && !item.videoUrl.includes('drive.google.com');
+                        if (isDirect) {
+                          return (
+                            <video 
+                              src={item.videoUrl} 
+                              className="w-full h-full object-cover" 
+                              preload="metadata" 
+                              muted 
+                              playsInline 
+                            />
+                          );
+                        }
+                        return (
                           <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-1.5 text-text-muted select-none">
                             <Newspaper className="w-6 h-6 opacity-45" />
                             <span className="text-[11px] font-bold tracking-wider font-mono">VARICOSE SQUAD</span>
@@ -762,6 +777,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   setNewsHashtags('');
                   setNewsSuccess(false);
                   setNewsFormErrors({});
+                  setIsVideoUploading(false);
+                  setVideoUploadProgress(0);
                 }}
                 className="px-4 py-2 bg-accent-light hover:bg-accent-color hover:text-white border border-accent-color/20 text-accent-color rounded-xl text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95"
               >
@@ -841,18 +858,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
       {showAddNewsModal && (
         <div 
           onClick={(e) => { if (e.target === e.currentTarget) { setShowAddNewsModal(false); } }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]"
+          className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs"
         >
           <div 
             ref={newsModalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-news-modal-title"
-            className="w-full max-w-md bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 animate-[scaleIn_0.2s_ease-out] relative"
+            className="modal-content-enter w-full max-w-md bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 relative"
           >
             
             {newsSuccess ? (
-              <div className="flex flex-col items-center text-center py-6 space-y-4 animate-[fadeIn_0.2s_ease-out]">
+              <div className="flex flex-col items-center text-center py-6 space-y-4 animate-fade-in">
                 <div className="relative">
                   <div className="absolute inset-0 w-16 h-16 rounded-full bg-green-500/20 animate-ping" />
                   <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/35">
@@ -980,72 +997,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                     <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                       Видео к новости (необязательно)
                     </label>
-                    <div className="flex gap-2 bg-bg-app border border-border-color p-0.5 rounded-lg text-[11px] font-semibold w-fit mb-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewsVideoSource('link');
-                          if (newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
-                        }}
-                        className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                          newsVideoSource === 'link'
-                            ? 'bg-accent-color text-white shadow-sm'
-                            : 'text-text-secondary hover:text-text-primary'
-                        }`}
-                      >
-                        Ссылка
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewsVideoSource('upload');
-                          if (!newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
-                        }}
-                        className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                          newsVideoSource === 'upload'
-                            ? 'bg-accent-color text-white shadow-sm'
-                            : 'text-text-secondary hover:text-text-primary'
-                        }`}
-                      >
-                        Загрузить файл
-                      </button>
-                    </div>
-
-                    {newsVideoSource === 'link' ? (
-                      <input 
-                        type="url" 
-                        value={newsVideoUrl}
-                        onChange={(e) => setNewsVideoUrl(e.target.value)}
-                        placeholder="Вставьте ссылку на видео (YouTube, Google Drive, MP4)..."
-                        className="w-full ide-input"
-                      />
-                    ) : (
-                      <div className="space-y-2">
-                        {newsVideoUrl && newsVideoUrl.startsWith('data:video/') ? (
-                          <div className="relative aspect-video rounded-xl border border-border-color overflow-hidden bg-bg-app">
-                            <video 
-                              src={newsVideoUrl} 
-                              controls 
-                              className="w-full h-full object-contain"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setNewsVideoUrl('')}
-                              className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app">
-                            <p className="text-text-muted text-[11px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
-                            <VideoUploader 
-                              onVideoUploaded={(base64) => setNewsVideoUrl(base64)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <NewsVideoField
+                      videoUrl={newsVideoUrl}
+                      onVideoUrlChange={setNewsVideoUrl}
+                      source={newsVideoSource}
+                      onSourceChange={setNewsVideoSource}
+                      disabled={isSubmittingNews}
+                      onUploadStateChange={(uploading, progress) => {
+                        setIsVideoUploading(uploading);
+                        setVideoUploadProgress(progress);
+                      }}
+                    />
                   </div>
 
                   {/* Hashtags Input */}
@@ -1110,10 +1072,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmittingNews}
+                      disabled={isSubmittingNews || isVideoUploading}
                       className="flex-1 py-2.5 bg-accent-color hover:bg-accent-hover disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-soft transition-all cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      {isSubmittingNews ? 'Публикация...' : 'Опубликовать'}
+                      {isSubmittingNews 
+                        ? 'Публикация...' 
+                        : isVideoUploading 
+                          ? `Загрузка видео... ${videoUploadProgress}%` 
+                          : 'Опубликовать'}
                     </button>
                   </div>
                 </form>
@@ -1135,10 +1101,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
           100% {
             transform: translateY(105vh) rotate(720deg);
           }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

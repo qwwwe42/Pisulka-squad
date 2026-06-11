@@ -108,6 +108,10 @@ html[data-theme='dark'] {
 
   --shadow-soft: var(--shadow-soft);
   --shadow-hover: var(--shadow-hover);
+
+  --animate-fade-in: fadeIn 0.2s ease-out forwards;
+  --animate-slide-up: slideUp 0.35s ease-out forwards;
+  --animate-scale-in: scaleIn 0.25s ease-out forwards;
 }
 
 @layer base {
@@ -460,7 +464,7 @@ html[data-theme='dark'] .minecraft-view-container textarea:focus {
    Premium Dynamic Animations & Glow Interactions
    ========================================================================== */
 
-/* Page Route Transition */
+/* Page Route Transition Keyframes */
 @keyframes pageTransition {
   0% {
     opacity: 0;
@@ -474,8 +478,124 @@ html[data-theme='dark'] .minecraft-view-container textarea:focus {
   }
 }
 
-.animate-page-transition {
+@keyframes sectionEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalOverlayEnter {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes modalContentEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes itemEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.page-enter, .animate-page-transition {
   animation: pageTransition 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.page-section {
+  animation: pageTransition 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.section-enter {
+  animation: sectionEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.section-enter-delay-1 {
+  animation-delay: 0.05s;
+}
+
+.section-enter-delay-2 {
+  animation-delay: 0.1s;
+}
+
+.section-enter-delay-3 {
+  animation-delay: 0.15s;
+}
+
+.modal-overlay-enter {
+  animation: modalOverlayEnter 0.15s ease-out forwards;
+}
+
+.modal-content-enter {
+  animation: modalContentEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.item-enter {
+  animation: itemEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-enter {
+  animation: toastEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Ambient Floating Background Blobs */

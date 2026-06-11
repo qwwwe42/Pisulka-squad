@@ -9,13 +9,13 @@ export const MinecraftModsView: React.FC = () => {
   const modpack = minecraftConfig?.modpack;
 
   return (
-    <div className="minecraft-view-container glass-panel relative min-h-screen w-full flex flex-col items-center">
+    <div className="page-section minecraft-view-container glass-panel relative min-h-screen w-full flex flex-col items-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0 pointer-events-none mods-overlay" />
       
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-8 py-12 pb-32 animate-fade-in flex flex-col flex-1">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-8 py-12 pb-32 flex flex-col flex-1">
         
         {/* Header */}
-        <div className="mb-12 md:mb-16 text-center animate-slide-up">
+        <div className="section-enter mb-12 md:mb-16 text-center">
           <div className="inline-flex items-center justify-center p-4 bg-purple-500/20 rounded-full mb-6 ring-2 ring-purple-500/30">
             <Puzzle className="w-12 h-12 text-purple-400" />
           </div>
@@ -29,7 +29,7 @@ export const MinecraftModsView: React.FC = () => {
 
         {/* Modpack Banner */}
         {modpack && (
-          <div className="mb-12 md:mb-16 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+          <div className="section-enter section-enter-delay-1 mb-12 md:mb-16">
             <div className="modpack-banner bg-gradient-to-br from-purple-900/40 to-black/60 border border-purple-500/30 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl shadow-purple-900/20 relative overflow-hidden flex flex-col md:flex-row items-center gap-8">
               {/* Decoration */}
               <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
@@ -79,7 +79,7 @@ export const MinecraftModsView: React.FC = () => {
             <p className="text-slate-400">Список модов пуст. Администратор скоро добавит их.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="section-enter section-enter-delay-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {mods.map((mod) => (
               <div 
                 key={mod.id} 

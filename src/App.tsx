@@ -532,7 +532,7 @@ function AppContent() {
             id="main-content"
             className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-10 py-6 overflow-y-auto"
           >
-            <div className="animate-page-transition">
+            <div className="page-enter">
               <Routes>
                 {/* Home */}
                 <Route path="/" element={
@@ -612,7 +612,7 @@ function AppContent() {
       {/* 4. Password Protection Modal */}
       {showPasswordModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]"
+          className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
           aria-labelledby="admin-password-title"
@@ -620,7 +620,7 @@ function AppContent() {
         >
           <div
             ref={passwordModalRef}
-            className={`w-80 bg-bg-card border border-border-color rounded-3xl p-6 shadow-soft space-y-4 text-center ${passwordError ? 'animate-[shake_0.4s_ease-in-out]' : ''}`}
+            className={`modal-content-enter w-80 bg-bg-card border border-border-color rounded-3xl p-6 shadow-soft space-y-4 text-center ${passwordError ? 'animate-[shake_0.4s_ease-in-out]' : ''}`}
           >
 
             <div className="w-12 h-12 rounded-full bg-accent-light border border-accent-color/30 text-accent-color flex items-center justify-center mx-auto">

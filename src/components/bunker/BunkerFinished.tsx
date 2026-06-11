@@ -12,7 +12,7 @@ export const BunkerFinished: React.FC<Props> = ({ room, onLeave }) => {
   const deadPlayers = room.players.filter(p => !p.isAlive);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-[fadeIn_0.5s_ease-out]">
+    <div className="page-section max-w-2xl mx-auto space-y-6">
       <div className="bg-bg-card border border-border-color p-8 rounded-3xl shadow-soft text-center space-y-4">
         <div className="w-16 h-16 mx-auto bg-accent-light/50 border border-accent-color/30 rounded-full flex items-center justify-center text-accent-color">
           <ShieldCheck className="w-8 h-8" />

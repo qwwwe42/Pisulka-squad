@@ -113,9 +113,9 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
     const cleanTitle = title.replace(/^([✓📌]\s\[.*?\]\s)/u, '');
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
+      <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
         <div 
-          className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-lg p-5 space-y-5 shadow-2xl"
+          className="modal-content-enter w-full max-w-md bg-bg-card border border-border-color rounded-3xl p-5 space-y-5 shadow-soft"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -185,9 +185,9 @@ export const EventModal: React.FC<EventModalProps> = ({ eventToEdit, defaultDate
 
   // 2. Standard event view (Fallback/Regular)
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
+    <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <div 
-        className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-lg p-5 space-y-5 shadow-2xl"
+        className="modal-content-enter w-full max-w-md bg-bg-card border border-border-color rounded-3xl p-5 space-y-5 shadow-soft"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

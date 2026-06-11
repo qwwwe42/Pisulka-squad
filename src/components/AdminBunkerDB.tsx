@@ -79,7 +79,7 @@ export const AdminBunkerDB: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+    <div className="space-y-6 section-enter">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
           <span className="text-3xl">☢️</span> База характеристик Бункера

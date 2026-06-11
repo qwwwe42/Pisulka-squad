@@ -68,7 +68,7 @@ export const LiveCoWatchWidget: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-3 p-6 bg-bg-card/45 border border-border-color/60 rounded-3xl animate-pulse shadow-soft">
+      <div className="item-enter space-y-3 p-6 bg-bg-card/45 border border-border-color/60 rounded-3xl animate-pulse shadow-soft">
         <div className="h-4 bg-border-color rounded w-1/4 mb-4" />
         <div className="space-y-2">
           <div className="h-14 bg-border-color rounded-xl" />

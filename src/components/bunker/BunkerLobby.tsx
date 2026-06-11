@@ -32,7 +32,7 @@ export const BunkerLobby: React.FC<Props> = ({ profile, roomsList, onCreateRoom,
   const activeRooms = roomsList.filter(room => room.players.length > 0);
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 bg-bg-sidebar border border-border-sidebar backdrop-blur-md rounded-[2rem] shadow-2xl space-y-6 animate-[fadeIn_0.3s_ease-out]">
+    <div className="page-section p-4 sm:p-6 md:p-8 bg-bg-sidebar border border-border-sidebar backdrop-blur-md rounded-[2rem] shadow-2xl space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-bg-card border border-border-color p-6 rounded-3xl shadow-soft">
         <div>
           <h2 className="text-xl font-extrabold text-text-primary tracking-tight">Игра «Бункер»</h2>

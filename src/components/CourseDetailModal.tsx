@@ -97,9 +97,9 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({ courseId, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]">
+    <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <div 
-        className="relative w-full max-w-5xl glass-modal overflow-hidden max-h-[90vh] flex flex-col"
+        className="modal-content-enter relative w-full max-w-5xl glass-modal overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -229,7 +229,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({ courseId, 
               </div>
 
               {useManualProgress ? (
-                <div className="space-y-2 animate-[fadeIn_0.2s_ease-out]">
+                <div className="space-y-2 animate-fade-in">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-cyan-400">Вручную заданный прогресс</span>
                     <span className="text-cyan-300">{manualProgressPercent}%</span>

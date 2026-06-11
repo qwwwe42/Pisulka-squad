@@ -64,7 +64,7 @@ export const DashboardView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+    <div className="space-y-6 section-enter">
       
       {/* Banner */}
       <div className="p-5 bg-slate-950 border border-slate-800 rounded-lg space-y-3">

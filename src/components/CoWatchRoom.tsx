@@ -1940,7 +1940,7 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   };
 
   const roomContent = (
-    <div className={`w-full overflow-hidden flex relative transition-all duration-300 glass-panel ${
+    <div className={`page-section w-full overflow-hidden flex relative transition-all duration-300 glass-panel ${
       !isJoined 
         ? 'max-w-[420px] h-auto flex-col mx-auto ' + (isInline ? 'mt-8 md:mt-16 mb-8' : 'my-auto')
         : 'flex-col md:flex-row p-0 md:p-0 ' + (isInline ? 'h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]' : 'max-w-6xl h-[90vh]')
@@ -2678,8 +2678,8 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
 
       {/* Password Modal */}
       {passwordModalOpen && (
-        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-bg-card border border-border-color rounded-[24px] p-5 max-w-[340px] w-full space-y-4 shadow-2xl text-center animate-[fadeIn_0.15s_ease-out]">
+        <div className="modal-overlay-enter absolute inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="modal-content-enter bg-bg-card border border-border-color rounded-[24px] p-5 max-w-[340px] w-full space-y-4 shadow-2xl text-center">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500 mx-auto">
               <span className="text-xl">🔒</span>
             </div>
@@ -2728,8 +2728,10 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 md:p-6 animate-[fadeIn_0.2s_ease-out]">
-      {roomContent}
+    <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 md:p-6">
+      <div className="modal-content-enter w-full max-w-6xl">
+        {roomContent}
+      </div>
     </div>
   );
 };

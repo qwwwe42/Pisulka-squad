@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import type { Show, MinecraftPlayer, NewsArticle, Episode, EmojiItem } from '../types/streaming';
 import { ImageUploader } from './ImageUploader';
-import { VideoUploader } from './VideoUploader';
+import { NewsVideoField } from './NewsVideoField';
 import { AdminBunkerDB } from './AdminBunkerDB';
 
 const generateId = (prefix: string) => `${prefix}-${Date.now()}`;
@@ -211,6 +211,8 @@ export const AdminPanel: React.FC = () => {
   const [newsVideoSource, setNewsVideoSource] = useState<'link' | 'upload'>('link');
   const [newsHashtags, setNewsHashtags] = useState('');
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
 
   // Reactions Settings Form State
   const [newEmojiChar, setNewEmojiChar] = useState('');
@@ -904,9 +906,9 @@ export const AdminPanel: React.FC = () => {
   const selectedShow = shows.find(s => s.id === selectedShowId);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-[fadeIn_0.2s_ease-out]">
+    <div className="page-section grid grid-cols-1 lg:grid-cols-4 gap-6">
       {/* 1. Left Nav Tabs */}
-      <div className="lg:col-span-1 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between h-fit gap-6">
+      <div className="section-enter lg:col-span-1 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between h-fit gap-6">
         <div className="space-y-1">
           <div className="px-2 pb-3 border-b border-slate-800/60 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Меню админа</span>
@@ -1043,10 +1045,10 @@ export const AdminPanel: React.FC = () => {
       </div>
 
       {/* 2. Main Form Area */}
-      <div className="lg:col-span-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 relative">
+      <div className="section-enter section-enter-delay-1 lg:col-span-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 relative">
         {/* Banner notification msg */}
         {statusMsg && (
-          <div className={`absolute top-4 right-4 z-20 px-4 py-2 rounded-xl text-xs font-semibold border flex items-center gap-2 shadow-lg animate-[fadeIn_0.15s_ease-out] ${
+          <div className={`toast-enter absolute top-4 right-4 z-20 px-4 py-2 rounded-xl text-xs font-semibold border flex items-center gap-2 shadow-lg ${
             statusMsg.type === 'success' 
               ? 'bg-green-950/25 border-green-800/50 text-green-400' 
               : statusMsg.type === 'info'
@@ -1349,7 +1351,7 @@ export const AdminPanel: React.FC = () => {
 
                     {/* Edit Episode Sub-form */}
                     {editingEpisodeId && (
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-4 mt-3 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-4 mt-3 animate-fade-in">
                         <div className="text-xs font-bold text-slate-200 font-sans font-sans">Редактировать серию {editEpNumber}</div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1881,7 +1883,7 @@ export const AdminPanel: React.FC = () => {
 
                     {/* Edit Episode Sub-form */}
                     {editingEpisodeId && (
-                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-4 mt-3 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-4 mt-3 animate-fade-in">
                         <div className="text-xs font-bold text-slate-200 font-sans">Редактировать серию {editEpNumber}</div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2036,7 +2038,7 @@ export const AdminPanel: React.FC = () => {
                   </div>
 
                   {schedType === 'weekly' ? (
-                    <div className="grid grid-cols-2 gap-4 animate-[fadeIn_0.15s_ease-out]">
+                    <div className="grid grid-cols-2 gap-4 animate-fade-in">
                       <div className="space-y-1.5 font-sans font-sans font-sans">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">День недели</label>
                         <select 
@@ -2065,7 +2067,7 @@ export const AdminPanel: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-1.5 animate-[fadeIn_0.15s_ease-out] font-sans">
+                    <div className="space-y-1.5 animate-fade-in font-sans">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans font-sans">Дата и время выхода новой серии</label>
                       <input 
                         type="datetime-local" 
@@ -2111,7 +2113,7 @@ export const AdminPanel: React.FC = () => {
                       setShowThumb('');
                       setShowTrailerUrl('');
                     }}
-                    className="px-4 py-2 bg-purple-650 hover:bg-purple-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-950/20 cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 animate-[fadeIn_0.15s_ease-out] font-sans font-sans"
+                    className="px-4 py-2 bg-purple-650 hover:bg-purple-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-950/20 cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 btn-dynamic font-sans font-sans"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Добавить сериал</span>
@@ -2294,7 +2296,7 @@ export const AdminPanel: React.FC = () => {
 
         {/* TAB 5: NEWS MANAGEMENT */}
         {adminTab === 'news' && (
-          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+          <div className="space-y-6 animate-fade-in font-sans">
             <form onSubmit={handleSaveNews} className="space-y-4 font-sans font-sans">
               <div>
                 <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans font-sans">
@@ -2346,72 +2348,17 @@ export const AdminPanel: React.FC = () => {
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   Видео к новости (необязательно)
                 </label>
-                <div className="flex gap-2 bg-slate-950 border border-slate-800 p-0.5 rounded-lg text-[9px] font-semibold w-fit mb-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNewsVideoSource('link');
-                      if (newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
-                    }}
-                    className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                      newsVideoSource === 'link'
-                        ? 'bg-purple-650 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Ссылка
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNewsVideoSource('upload');
-                      if (!newsVideoUrl.startsWith('data:')) setNewsVideoUrl('');
-                    }}
-                    className={`px-3 py-1 rounded-md transition-all cursor-pointer font-bold ${
-                      newsVideoSource === 'upload'
-                        ? 'bg-purple-650 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Загрузить файл
-                  </button>
-                </div>
-
-                {newsVideoSource === 'link' ? (
-                  <input 
-                    type="url" 
-                    value={newsVideoUrl}
-                    onChange={(e) => setNewsVideoUrl(e.target.value)}
-                    placeholder="Вставьте ссылку на видео (YouTube, Google Drive, MP4)..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-purple-500/50"
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    {newsVideoUrl && newsVideoUrl.startsWith('data:video/') ? (
-                      <div className="relative aspect-video max-w-sm rounded-xl border border-slate-800 overflow-hidden bg-slate-950">
-                        <video 
-                          src={newsVideoUrl} 
-                          controls 
-                          className="w-full h-full object-contain"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setNewsVideoUrl('')}
-                          className="absolute top-2 right-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-slate-350 hover:text-white transition-colors cursor-pointer"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="border border-dashed border-slate-800 rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-slate-950 max-w-sm">
-                        <p className="text-slate-500 text-[10px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
-                        <VideoUploader 
-                          onVideoUploaded={(base64) => setNewsVideoUrl(base64)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
+                <NewsVideoField
+                  videoUrl={newsVideoUrl}
+                  onVideoUrlChange={setNewsVideoUrl}
+                  source={newsVideoSource}
+                  onSourceChange={setNewsVideoSource}
+                  disabled={isVideoUploading}
+                  onUploadStateChange={(uploading, progress) => {
+                    setIsVideoUploading(uploading);
+                    setVideoUploadProgress(progress);
+                  }}
+                />
               </div>
 
               {/* Hashtags Input */}
@@ -2479,11 +2426,16 @@ export const AdminPanel: React.FC = () => {
                     Отменить редактирование
                   </button>
                 )}
-                <button 
+                 <button 
                   type="submit" 
-                  className="px-5 py-2.5 bg-purple-650 hover:bg-purple-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-950/20 cursor-pointer ml-auto active:scale-95"
+                  disabled={isVideoUploading}
+                  className="px-5 py-2.5 bg-purple-650 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-950/20 cursor-pointer ml-auto active:scale-95"
                 >
-                  {editingNewsId ? 'Сохранить новость' : 'Опубликовать новость'}
+                  {isVideoUploading 
+                    ? `Загрузка видео... ${videoUploadProgress}%` 
+                    : editingNewsId 
+                      ? 'Сохранить новость' 
+                      : 'Опубликовать новость'}
                 </button>
               </div>
             </form>
@@ -2540,7 +2492,7 @@ export const AdminPanel: React.FC = () => {
 
         {/* TAB 6: MINECRAFT CONFIG */}
         {adminTab === 'minecraft' && (
-          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+          <div className="space-y-6 animate-fade-in font-sans">
             <form onSubmit={handleSaveMinecraft} className="space-y-6 font-sans">
               <div>
                 <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
@@ -2957,7 +2909,7 @@ export const AdminPanel: React.FC = () => {
 
         {/* TAB 7: REACTIONS CONFIG */}
         {adminTab === 'reactions' && (
-          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+          <div className="space-y-6 animate-fade-in font-sans">
             <div>
               <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
                 Настройки реакций (эмодзи)
@@ -3085,7 +3037,7 @@ export const AdminPanel: React.FC = () => {
 
         {/* TAB 8: BACKGROUNDS */}
         {adminTab === 'backgrounds' && (
-          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+          <div className="space-y-6 animate-fade-in font-sans">
             <div>
               <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
                 Фоны вкладок
@@ -3249,7 +3201,7 @@ export const AdminPanel: React.FC = () => {
 
         {/* TAB 9: EVENT TIMER CONFIG */}
         {adminTab === 'event_timer' && (
-          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+          <div className="space-y-6 animate-fade-in font-sans">
             <div>
               <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
                 Таймер обратного отсчета
@@ -3353,46 +3305,33 @@ export const AdminPanel: React.FC = () => {
 
       {/* ====== Show Created Success Animation Overlay ====== */}
       {showCreatedAnimation.visible && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="flex flex-col items-center text-center space-y-5 animate-[scaleUp_0.4s_cubic-bezier(0.34,1.56,0.64,1)] font-sans">
+        <div className="modal-overlay-enter fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm">
+          <div className="modal-content-enter flex flex-col items-center text-center space-y-5 font-sans">
             {/* Animated Glow Ring */}
             <div className="relative font-sans">
               <div className="absolute inset-0 w-24 h-24 rounded-full bg-green-500/20 animate-ping" />
               <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-green-500/30">
-                <CheckCircle2 className="w-12 h-12 text-white animate-[bounceIn_0.5s_ease-out]" />
+                <CheckCircle2 className="w-12 h-12 text-white toast-enter" />
               </div>
             </div>
 
             {/* Sparkle decorations */}
-            <div className="flex items-center gap-2 text-yellow-400 animate-[fadeIn_0.3s_ease-out_0.2s_both]">
+            <div className="flex items-center gap-2 text-yellow-400 animate-fade-in">
               <Sparkles className="w-4 h-4 animate-bounce" />
               <span className="text-[10px] font-bold uppercase tracking-widest">Успех!</span>
               <Sparkles className="w-4 h-4 animate-bounce" style={{ animationDelay: '0.15s' }} />
             </div>
 
             {/* Title */}
-            <div className="space-y-1 animate-[fadeIn_0.3s_ease-out_0.3s_both] font-sans font-sans">
+            <div className="space-y-1 animate-fade-in font-sans font-sans">
               <h3 className="text-lg font-extrabold text-white">Сериал добавлен</h3>
               <p className="text-sm text-green-300 font-semibold max-w-xs truncate">«{showCreatedAnimation.title}»</p>
             </div>
 
-            <p className="text-[10px] text-slate-500 font-mono animate-[fadeIn_0.3s_ease-out_0.5s_both]">Переход к добавлению серий...</p>
+            <p className="text-[10px] text-slate-500 font-mono animate-fade-in">Переход к добавлению серий...</p>
           </div>
         </div>
       )}
-
-      {/* Keyframes for success animation */}
-      <style>{`
-        @keyframes scaleUp {
-          from { opacity: 0; transform: scale(0.6); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes bounceIn {
-          0% { transform: scale(0); }
-          60% { transform: scale(1.2); }
-          100% { transform: scale(1); }
-        }
-      `}</style>
     </div>
   );
 };

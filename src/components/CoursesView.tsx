@@ -70,7 +70,7 @@ export const CoursesView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-[fadeIn_0.4s_ease-out]">
+    <div className="space-y-6 section-enter">
       {/* View Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -161,9 +161,9 @@ export const CoursesView: React.FC = () => {
 
       {/* Add Course Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]">
+        <div className="modal-overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div
-            className="w-full max-w-lg glass-modal overflow-hidden p-6 space-y-6"
+            className="modal-content-enter w-full max-w-lg glass-modal overflow-hidden p-6 space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -270,7 +270,7 @@ export const CoursesView: React.FC = () => {
                   />
                 </div>
                 {newUseManual && (
-                  <div className="space-y-1.5 animate-[fadeIn_0.2s_ease-out]">
+                  <div className="space-y-1.5 animate-fade-in">
                     <div className="flex justify-between text-[11px] font-semibold">
                       <span className="text-slate-400">Начальный прогресс</span>
                       <span className="text-cyan-300">{newManualPercent}%</span>
