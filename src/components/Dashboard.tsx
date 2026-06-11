@@ -1,19 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStreaming } from '../context/StreamingContext';
 import { ShowCard } from './ShowCard';
-import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2, Newspaper } from 'lucide-react';
+import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2, Newspaper, ChevronLeft, ChevronRight, Tv } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
 import { VideoUploader } from './VideoUploader';
+import { LiveCoWatchWidget } from './LiveCoWatchWidget';
 
 interface DashboardProps {
   onSelectShow: (showId: string) => void;
   onSelectEpisode: (showId: string, episodeId: string) => void;
   onSelectNews?: (newsId: string) => void;
+  onNavigateToShows?: () => void;
   mode?: 'home' | 'catalog';
 }
 
 // Pure CSS Confetti generator
 function triggerCelebration() {
+  // Respect reduced-motion preferences (#14)
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const colors = ['#a855f7', '#06b6d4', '#ec4899', '#eab308', '#22c55e'];
   const container = document.createElement('div');
   container.style.position = 'fixed';
@@ -48,11 +52,12 @@ function triggerCelebration() {
   }, 10000);
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, onSelectNews, mode = 'home' }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, onSelectNews, onNavigateToShows, mode = 'home' }) => {
   const { shows, watchProgress, loadDemoData, news, addNews, eventTimerConfig } = useStreaming();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
-  
+  const [newsFormErrors, setNewsFormErrors] = useState<{ title?: string; content?: string; general?: string }>({});
+
   // Event Timer states
   const [eventTimeLeft, setEventTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [eventTimerIsDone, setEventTimerIsDone] = useState(false);
@@ -99,6 +104,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
   const [newsHashtags, setNewsHashtags] = useState('');
   const [isSubmittingNews, setIsSubmittingNews] = useState(false);
   const [newsSuccess, setNewsSuccess] = useState(false);
+  const newsModalRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap and Escape close for news modal
+  useEffect(() => {
+    if (!showAddNewsModal) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAddNewsModal(false);
+        return;
+      }
+
+      if (e.key === 'Tab' && newsModalRef.current) {
+        const focusable = newsModalRef.current.querySelectorAll<HTMLElement>(
+          'input, textarea, button, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showAddNewsModal]);
   
   const visibleShows = shows.filter(s => !s.isHidden);
   const ongoingWithCountdown = visibleShows.find(s => s.status === 'ongoing' && s.nextEpisodeRelease);
@@ -164,6 +201,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
     })
     .sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime());
 
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    const el = carouselRef.current;
+    if (el) {
+      setCanScrollLeft(el.scrollLeft > 5);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 5);
+    }
+  };
+
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+
+    checkScroll();
+    el.addEventListener('scroll', checkScroll);
+
+    const observer = new ResizeObserver(() => {
+      checkScroll();
+    });
+    observer.observe(el);
+
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      observer.disconnect();
+    };
+  }, [continueWatchingItems]);
+
+  const handleScrollCarousel = (direction: 'left' | 'right') => {
+    const el = carouselRef.current;
+    if (el) {
+      const scrollAmount = direction === 'left' ? -280 : 280;
+      el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
   const filteredShows = shows.filter(show => {
     if (show.isHidden) return false;
     const query = String(searchQuery || '').toLowerCase();
@@ -190,7 +265,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
           
           <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="text-center md:text-left space-y-2 max-w-xl">
-              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-accent-light text-accent-color border border-accent-color/25 inline-block animate-pulse">
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-accent-light text-accent-color border border-accent-color/25 inline-block">
                 Активное событие
               </span>
               <h2 className="text-xl md:text-3xl font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
@@ -210,7 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                     <div className="w-14 h-14 bg-bg-app/80 border border-border-color rounded-2xl flex items-center justify-center text-xl font-black text-text-primary font-mono shadow-md backdrop-blur-sm">
                       {eventTimeLeft.days.toString().padStart(2, '0')}
                     </div>
-                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest mt-1">дн</span>
+                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-widest mt-1">дн</span>
                   </div>
                   
                   <span className="text-xl font-bold text-white mb-4">:</span>
@@ -219,7 +294,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                     <div className="w-14 h-14 bg-bg-app/80 border border-border-color rounded-2xl flex items-center justify-center text-xl font-black text-text-primary font-mono shadow-md backdrop-blur-sm">
                       {eventTimeLeft.hours.toString().padStart(2, '0')}
                     </div>
-                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest mt-1">ч</span>
+                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-widest mt-1">ч</span>
                   </div>
 
                   <span className="text-xl font-bold text-white mb-4">:</span>
@@ -228,7 +303,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                     <div className="w-14 h-14 bg-bg-app/80 border border-border-color rounded-2xl flex items-center justify-center text-xl font-black text-text-primary font-mono shadow-md backdrop-blur-sm">
                       {eventTimeLeft.minutes.toString().padStart(2, '0')}
                     </div>
-                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest mt-1">мин</span>
+                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-widest mt-1">мин</span>
                   </div>
 
                   <span className="text-xl font-bold text-white mb-4">:</span>
@@ -237,7 +312,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                     <div className="w-14 h-14 bg-accent-color border border-accent-color/30 rounded-2xl flex items-center justify-center text-xl font-black text-white font-mono shadow-lg shadow-accent-color/20">
                       {eventTimeLeft.seconds.toString().padStart(2, '0')}
                     </div>
-                    <span className="text-[9px] font-bold text-accent-color uppercase tracking-widest mt-1">сек</span>
+                    <span className="text-[11px] font-bold text-accent-color uppercase tracking-widest mt-1">сек</span>
                   </div>
                 </div>
               ) : (
@@ -275,10 +350,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
             {/* Info details */}
             <div className="max-w-2xl space-y-4 text-center lg:text-left">
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-accent-light text-accent-color border border-accent-color/20">
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-accent-light text-accent-color border border-accent-color/20">
                   Рекомендуем ({featuredShow.category})
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-bg-app text-text-secondary border border-border-color">
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-bg-app text-text-secondary border border-border-color">
                   {featuredShow.status === 'ongoing' ? 'В эфире (Онгоинг)' : 'Выпущен полностью'}
                 </span>
               </div>
@@ -311,8 +386,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                 <div className="absolute w-48 h-48 bg-accent-color/5 rounded-full filter blur-xl group-hover:bg-accent-color/10 transition-all duration-500" />
 
                 <div className="relative z-10 flex flex-col items-center text-center">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-accent-color uppercase font-mono">
-                    <Clock className="w-3.5 h-3.5 animate-pulse text-accent-color" />
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-accent-color uppercase font-mono">
+                    <Clock className="w-3.5 h-3.5 text-accent-color" />
                     <span>До новой серии осталось</span>
                   </div>
 
@@ -323,7 +398,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       <div className="w-14 h-14 bg-bg-app border border-border-color rounded-2xl flex items-center justify-center text-xl font-bold text-text-primary font-mono shadow-sm">
                         {timeLeft.days.toString().padStart(2, '0')}
                       </div>
-                      <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-1.5">дн</span>
+                      <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider mt-1.5">дн</span>
                     </div>
 
                     {/* Hours */}
@@ -331,7 +406,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       <div className="w-14 h-14 bg-bg-app border border-border-color rounded-2xl flex items-center justify-center text-xl font-bold text-text-primary font-mono shadow-sm">
                         {timeLeft.hours.toString().padStart(2, '0')}
                       </div>
-                      <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-1.5">ч</span>
+                      <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider mt-1.5">ч</span>
                     </div>
 
                     {/* Minutes */}
@@ -339,7 +414,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       <div className="w-14 h-14 bg-bg-app border border-border-color rounded-2xl flex items-center justify-center text-xl font-bold text-text-primary font-mono shadow-sm">
                         {timeLeft.minutes.toString().padStart(2, '0')}
                       </div>
-                      <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-1.5">мин</span>
+                      <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider mt-1.5">мин</span>
                     </div>
 
                     {/* Seconds */}
@@ -347,11 +422,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       <div className="w-14 h-14 bg-accent-light border border-accent-color/30 rounded-2xl flex items-center justify-center text-xl font-bold text-accent-color font-mono shadow-sm">
                         {timeLeft.seconds.toString().padStart(2, '0')}
                       </div>
-                      <span className="text-[9px] font-bold text-accent-color uppercase tracking-wider mt-1.5">сек</span>
+                      <span className="text-[11px] font-bold text-accent-color uppercase tracking-wider mt-1.5">сек</span>
                     </div>
                   </div>
 
-                  <p className="text-[10px] text-text-muted mt-5 font-mono italic">
+                  <p className="text-[11px] text-text-muted mt-5 font-mono italic">
                     Каждую неделю: {['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'][featuredShow.scheduleDay || 0]} в {featuredShow.scheduleTime || '00:00'}
                   </p>
                 </div>
@@ -369,7 +444,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
         </div>
       ) : (
         <div className="rounded-[32px] border border-dashed border-border-color p-12 text-center space-y-4 bg-bg-card shadow-soft">
-          <Calendar className="w-12 h-12 text-text-muted mx-auto animate-pulse" />
+          <Calendar className="w-12 h-12 text-text-muted mx-auto" />
           <h2 className="text-lg font-bold text-text-primary">Каталог пуст</h2>
           <p className="text-xs text-text-secondary max-w-sm mx-auto leading-relaxed">
             Пожалуйста, перейдите в <strong>Панель Админа</strong>, чтобы добавить сериалы или загрузить демонстрационные данные.
@@ -388,66 +463,199 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
       {mode === 'home' && continueWatchingItems.length > 0 && (
         <div className="space-y-3 shrink-0">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest flex items-center gap-2 font-mono">
-              <Clock className="w-4 h-4 text-accent-color" />
-              <span>Продолжить просмотр</span>
-            </h3>
-            <span className="text-[10px] text-text-muted">{continueWatchingItems.length} серий</span>
+            <div className="flex items-center gap-3">
+              <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest flex items-center gap-2 font-mono">
+                <Clock className="w-4 h-4 text-accent-color" />
+                <span>Продолжить просмотр</span>
+              </h3>
+              <span className="text-[11px] text-text-muted">{continueWatchingItems.length} серий</span>
+            </div>
+            {canScrollRight && (
+              <span className="text-xs text-text-muted animate-[pulse_2s_infinite] select-none font-medium hidden sm:inline">
+                Листайте →
+              </span>
+            )}
           </div>
 
-          <div className="flex overflow-x-auto pb-3 gap-4 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-2 px-2">
-            {continueWatchingItems.map((progress) => {
-              const showItem = shows.find(s => s.id === progress.showId);
-              const epItem = showItem?.episodes.find(e => e.id === progress.episodeId);
-              
-              if (!showItem || !epItem) return null;
+          <div className="relative group/carousel">
+            {/* Left Chevron Button */}
+            {canScrollLeft && (
+              <button
+                type="button"
+                onClick={() => handleScrollCarousel('left')}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-bg-card/90 border border-border-color hover:border-accent-color/30 text-text-primary flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hidden md:flex"
+                aria-label="Прокрутить влево"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
 
-              const percent = (progress.watchedDuration / progress.totalDuration) * 100;
+            {/* Right Chevron Button */}
+            {canScrollRight && (
+              <button
+                type="button"
+                onClick={() => handleScrollCarousel('right')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-bg-card/90 border border-border-color hover:border-accent-color/30 text-text-primary flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hidden md:flex"
+                aria-label="Прокрутить вправо"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
 
-              return (
-                <div 
-                  key={progress.episodeId}
-                  onClick={() => onSelectEpisode(showItem.id, epItem.id)}
-                  className="snap-start shrink-0 w-64 bg-bg-card border border-border-color rounded-2xl overflow-hidden cursor-pointer group shadow-soft hover:shadow-hover hover:scale-[1.01] transition-all duration-300"
-                >
-                  <div className="relative aspect-[16/9] bg-bg-app">
-                    {epItem.thumbnail ? (
-                      <img src={epItem.thumbnail} alt={epItem.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Play className="w-6 h-6 text-text-muted group-hover:text-accent-color" />
+            {/* Left Fade Gradient */}
+            {canScrollLeft && (
+              <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-bg-app via-bg-app/40 to-transparent pointer-events-none z-10 animate-[fadeIn_0.2s_ease-out]" />
+            )}
+
+            {/* Right Fade Gradient */}
+            {canScrollRight && (
+              <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-bg-app via-bg-app/40 to-transparent pointer-events-none z-10 animate-[fadeIn_0.2s_ease-out]" />
+            )}
+
+            <div 
+              ref={carouselRef}
+              className="flex overflow-x-auto pb-3 gap-4 scrollbar-none snap-x snap-mandatory scroll-smooth -mx-2 px-2"
+            >
+              {continueWatchingItems.map((progress) => {
+                const showItem = shows.find(s => s.id === progress.showId);
+                const epItem = showItem?.episodes.find(e => e.id === progress.episodeId);
+                
+                if (!showItem || !epItem) return null;
+
+                const percent = (progress.watchedDuration / progress.totalDuration) * 100;
+
+                return (
+                  <button 
+                    type="button"
+                    key={progress.episodeId}
+                    onClick={() => onSelectEpisode(showItem.id, epItem.id)}
+                    aria-label={`Смотреть: ${showItem.title}, серия ${epItem.number}`}
+                    className="snap-start shrink-0 w-64 bg-bg-card border border-border-color rounded-2xl overflow-hidden cursor-pointer group shadow-soft hover:shadow-hover hover:scale-[1.01] transition-all duration-300 text-left"
+                  >
+                    <div className="relative aspect-[16/9] bg-bg-app">
+                      {epItem.thumbnail ? (
+                        <img src={epItem.thumbnail} alt={epItem.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Play className="w-6 h-6 text-text-muted group-hover:text-accent-color" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/35 transition-colors flex items-center justify-center">
+                        <div className="p-2 bg-accent-color text-white rounded-full scale-90 opacity-0 group-hover:opacity-100 group-hover:scale-100 transition-all shadow-md">
+                          <Play className="w-4 h-4 fill-current ml-0.5" aria-hidden="true" />
+                        </div>
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/35 transition-colors flex items-center justify-center">
-                      <div className="p-2 bg-accent-color text-white rounded-full scale-90 opacity-0 group-hover:opacity-100 group-hover:scale-100 transition-all shadow-md">
-                        <Play className="w-4 h-4 fill-current ml-0.5" />
+
+                      {/* Top Episode Number badge */}
+                      <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-bg-card/95 text-[11px] font-bold text-accent-color border border-border-color font-mono backdrop-blur-xs">
+                        С{epItem.number}
+                      </div>
+
+                      {/* Progress bar line */}
+                      <div className="absolute bottom-0 inset-x-0 h-1 bg-border-color">
+                        <div className="h-full bg-accent-color" style={{ width: `${percent}%` }} />
                       </div>
                     </div>
 
-                    {/* Top Episode Number badge */}
-                    <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-bg-card/95 text-[9px] font-bold text-accent-color border border-border-color font-mono backdrop-blur-xs">
-                      С{epItem.number}
+                    <div className="p-3 space-y-1">
+                      <p className="text-[11px] text-accent-color font-bold truncate font-mono uppercase tracking-wider">
+                        {showItem.title}
+                      </p>
+                      <h4 className="text-xs font-bold text-text-primary group-hover:text-accent-color truncate transition-colors duration-200">
+                        {epItem.title}
+                      </h4>
                     </div>
-
-                    {/* Progress bar line */}
-                    <div className="absolute bottom-0 inset-x-0 h-1 bg-border-color">
-                      <div className="h-full bg-accent-color" style={{ width: `${percent}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="p-3 space-y-1">
-                    <p className="text-[9px] text-accent-color font-bold truncate font-mono uppercase tracking-wider">
-                      {showItem.title}
-                    </p>
-                    <h4 className="text-xs font-bold text-text-primary group-hover:text-accent-color truncate transition-colors duration-200">
-                      {epItem.title}
-                    </h4>
-                  </div>
-                </div>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
+      )}
+
+      {/* 2.45 CATALOG ON HOME */}
+      {mode === 'home' && shows.length > 0 && (
+        <div className="space-y-4 bg-bg-card border border-border-color rounded-[32px] p-6 md:p-8 shadow-soft">
+          <div className="border-b border-border-color pb-3 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-text-primary uppercase tracking-widest font-mono flex items-center gap-2">
+              <Tv className="w-4 h-4 text-accent-color" />
+              <span>Все сериалы</span>
+            </h3>
+            {onNavigateToShows && filteredShows.length > 8 && (
+              <button
+                onClick={onNavigateToShows}
+                className="text-xs font-bold text-accent-color hover:text-accent-hover transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                Показать все
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            {/* Category tabs */}
+            <div className="flex bg-bg-card border border-border-color p-0.5 rounded-xl text-xs text-text-secondary font-semibold self-start shadow-soft select-none">
+              {['All', 'Anime', 'Series', 'Movies'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-1.5 rounded-lg transition-all cursor-pointer font-bold ${
+                    activeCategory === cat 
+                      ? 'bg-accent-color text-white shadow-soft' 
+                      : 'hover:text-text-primary'
+                  }`}
+                >
+                  {cat === 'All' ? 'Все' : cat === 'Anime' ? 'Аниме' : cat === 'Series' ? 'Сериалы' : 'Фильмы'}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64 shadow-soft rounded-xl">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-muted" />
+              <input 
+                type="text"
+                placeholder="Поиск по названию..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-bg-card border border-border-color hover:border-accent-color/30 focus:border-accent-color rounded-xl pl-9 pr-4 py-2 text-xs text-text-primary outline-none transition-all placeholder:text-text-muted"
+              />
+            </div>
+          </div>
+
+          {filteredShows.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredShows.slice(0, 8).map((show) => (
+                <ShowCard 
+                  key={show.id} 
+                  show={show} 
+                  onClick={() => onSelectShow(show.id)} 
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-text-muted text-xs">
+              Сериалы с заданными фильтрами не найдены.
+            </div>
+          )}
+
+          {filteredShows.length > 8 && onNavigateToShows && (
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={onNavigateToShows}
+                className="px-6 py-2.5 bg-accent-color hover:bg-accent-hover text-white text-xs font-bold rounded-xl shadow-soft transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center gap-1"
+              >
+                Показать все
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2.48 LIVE CO-WATCH WIDGET */}
+      {mode === 'home' && (
+        <LiveCoWatchWidget />
       )}
 
       {/* 2.5 WELCOME CARD (LATEST NEWS) */}
@@ -468,8 +676,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                 setNewsVideoSource('link');
                 setNewsHashtags('');
                 setNewsSuccess(false);
+                setNewsFormErrors({});
               }}
-              className="px-3.5 py-1.5 bg-accent-color hover:bg-accent-hover text-white rounded-xl text-[10px] font-bold shadow-soft transition-all cursor-pointer flex items-center gap-1 active:scale-95 duration-200"
+              className="px-3.5 py-1.5 bg-accent-color hover:bg-accent-hover text-white rounded-xl text-[11px] font-bold shadow-soft transition-all cursor-pointer flex items-center gap-1 active:scale-95 duration-200"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Опубликовать новость</span>
@@ -484,7 +693,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   onClick={() => onSelectNews?.(item.id)}
                   className="p-5 bg-bg-card border border-border-color hover:border-accent-color/25 rounded-2xl space-y-2.5 shadow-soft hover:shadow-hover transition-all duration-300 font-sans cursor-pointer group"
                 >
-                  <span className="text-[9px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
+                  <span className="text-[11px] font-mono font-bold text-accent-color bg-accent-light px-2 py-0.5 rounded border border-accent-color/20 w-fit block">{item.tag}</span>
                   <h4 className="text-xs font-bold text-text-primary">{item.title}</h4>
                   {item.imageUrl ? (
                     <div className="rounded-xl overflow-hidden border border-border-color/60 aspect-video max-h-36 w-full bg-bg-app flex items-center justify-start relative shrink-0">
@@ -508,7 +717,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                         ) : (
                           <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-1.5 text-text-muted select-none">
                             <Newspaper className="w-6 h-6 opacity-45" />
-                            <span className="text-[9px] font-bold tracking-wider font-mono">PISULKA SQUAD</span>
+                            <span className="text-[11px] font-bold tracking-wider font-mono">VARICOSE SQUAD</span>
                           </div>
                         );
                       })()}
@@ -528,7 +737,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       {item.hashtags.map((tag) => (
                         <span
                           key={tag}
-                          className="text-[8px] font-bold text-accent-color bg-accent-light px-1.5 py-0.5 rounded border border-accent-color/5"
+                          className="text-[11px] font-bold text-accent-color bg-accent-light px-1.5 py-0.5 rounded border border-accent-color/5"
                         >
                           #{tag}
                         </span>
@@ -552,6 +761,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   setNewsVideoSource('link');
                   setNewsHashtags('');
                   setNewsSuccess(false);
+                  setNewsFormErrors({});
                 }}
                 className="px-4 py-2 bg-accent-light hover:bg-accent-color hover:text-white border border-accent-color/20 text-accent-color rounded-xl text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95"
               >
@@ -619,7 +829,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
 
       {mode === 'catalog' && shows.length === 0 && (
         <div className="rounded-[32px] border border-dashed border-border-color p-12 text-center space-y-4 bg-bg-card shadow-soft">
-          <Calendar className="w-12 h-12 text-text-muted mx-auto animate-pulse" />
+          <Calendar className="w-12 h-12 text-text-muted mx-auto" />
           <h2 className="text-lg font-bold text-text-primary">Каталог пуст</h2>
           <p className="text-xs text-text-secondary max-w-sm mx-auto leading-relaxed">
             Пожалуйста, перейдите в <strong>Панель Админа</strong>, чтобы добавить сериалы.
@@ -629,8 +839,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
 
       {/* 2.6 PUBLIC NEWS PUBLISHING MODAL */}
       {showAddNewsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]">
-          <div className="w-full max-w-md bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 animate-[scaleIn_0.2s_ease-out] relative">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowAddNewsModal(false); } }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs animate-[fadeIn_0.15s_ease-out]"
+        >
+          <div 
+            ref={newsModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-news-modal-title"
+            className="w-full max-w-md bg-bg-card border border-border-color rounded-[32px] p-6 shadow-hover m-4 animate-[scaleIn_0.2s_ease-out] relative"
+          >
             
             {newsSuccess ? (
               <div className="flex flex-col items-center text-center py-6 space-y-4 animate-[fadeIn_0.2s_ease-out]">
@@ -650,7 +869,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                 <div className="flex items-center justify-between pb-4 border-b border-border-color">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-accent-color" />
-                    <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">
+                    <h3 id="add-news-modal-title" className="text-sm font-bold text-text-primary uppercase tracking-wider">
                       Опубликовать новость
                     </h3>
                   </div>
@@ -666,10 +885,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!newsTitle.trim() || !newsContent.trim()) {
-                      alert('Пожалуйста, заполните заголовок и содержание.');
+                      setNewsFormErrors({
+                        title: !newsTitle.trim() ? 'Пожалуйста, введите заголовок' : undefined,
+                        content: !newsContent.trim() ? 'Пожалуйста, введите содержание новости' : undefined
+                      });
                       return;
                     }
                     setIsSubmittingNews(true);
+                    setNewsFormErrors({});
                     const hashtagsArray = newsHashtags
                       .split(',')
                       .map(tag => tag.trim().replace(/^#/, ''))
@@ -691,7 +914,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       }, 1800);
                     } catch (err) {
                       console.error(err);
-                      alert('Не удалось опубликовать новость.');
+                      setNewsFormErrors({ general: 'Не удалось опубликовать новость. Попробуйте ещё раз.' });
                     } finally {
                       setIsSubmittingNews(false);
                     }
@@ -699,22 +922,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   className="space-y-4 pt-4"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                       Заголовок новости *
                     </label>
                     <input
                       type="text"
                       placeholder="Например: Собрание в 20:00!"
                       value={newsTitle}
-                      onChange={(e) => setNewsTitle(e.target.value)}
+                      onChange={(e) => {
+                        setNewsTitle(e.target.value);
+                        if (newsFormErrors.title) setNewsFormErrors(prev => ({ ...prev, title: undefined }));
+                      }}
                       className="w-full ide-input"
                       maxLength={80}
                       required
                     />
+                    {newsFormErrors.title && (
+                      <p className="text-xs text-rose-500 mt-1 font-semibold">{newsFormErrors.title}</p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                       Тег / Категория (макс. 18 симв.)
                     </label>
                     <input
@@ -728,24 +957,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                       Содержание новости *
                     </label>
                     <textarea
                       placeholder="Напишите текст новости для сообщества..."
                       value={newsContent}
-                      onChange={(e) => setNewsContent(e.target.value)}
+                      onChange={(e) => {
+                        setNewsContent(e.target.value);
+                        if (newsFormErrors.content) setNewsFormErrors(prev => ({ ...prev, content: undefined }));
+                      }}
                       className="w-full ide-input min-h-24 resize-none py-2.5 leading-relaxed"
                       required
                     />
+                    {newsFormErrors.content && (
+                      <p className="text-xs text-rose-500 mt-1 font-semibold">{newsFormErrors.content}</p>
+                    )}
                   </div>
 
                   {/* Video Input Selector */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                       Видео к новости (необязательно)
                     </label>
-                    <div className="flex gap-2 bg-bg-app border border-border-color p-0.5 rounded-lg text-[9px] font-semibold w-fit mb-2">
+                    <div className="flex gap-2 bg-bg-app border border-border-color p-0.5 rounded-lg text-[11px] font-semibold w-fit mb-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -803,7 +1038,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                           </div>
                         ) : (
                           <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app">
-                            <p className="text-text-muted text-[10px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
+                            <p className="text-text-muted text-[11px] font-semibold font-sans">Выберите видеофайл MP4, WebM или Ogg (до 15 МБ)</p>
                             <VideoUploader 
                               onVideoUploaded={(base64) => setNewsVideoUrl(base64)}
                             />
@@ -815,7 +1050,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
 
                   {/* Hashtags Input */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
                       Хэштеги (через запятую)
                     </label>
                     <input 
@@ -829,7 +1064,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
 
                   {/* Image Upload Selector */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
+                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block font-mono">
                       Изображение (необязательно)
                     </label>
                     
@@ -850,7 +1085,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       </div>
                     ) : (
                       <div className="border border-dashed border-border-color rounded-xl p-4 text-center flex flex-col items-center justify-center gap-2 bg-bg-app">
-                        <p className="text-text-muted text-[10px] font-semibold font-sans">Выберите изображение JPG, PNG или WebP</p>
+                        <p className="text-text-muted text-[11px] font-semibold font-sans">Выберите изображение JPG, PNG или WebP</p>
                         <ImageUploader 
                           onImageUploaded={(base64) => setNewsImage(base64)}
                           maxWidth={1000}
@@ -858,6 +1093,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                       </div>
                     )}
                   </div>
+
+                  {newsFormErrors.general && (
+                    <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs p-3 rounded-xl">
+                      {newsFormErrors.general}
+                    </div>
+                  )}
 
                   <div className="flex gap-2.5 pt-3">
                     <button

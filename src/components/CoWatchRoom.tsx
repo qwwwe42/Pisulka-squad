@@ -61,6 +61,7 @@ interface CoWatchRoomProps {
   defaultVideoUrl?: string;
   onClose?: () => void;
   isInline?: boolean;
+  initialRoomCode?: string;
 }
 
 interface VideoSource {
@@ -330,7 +331,8 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
   showTitle, 
   defaultVideoUrl, 
   onClose,
-  isInline = false
+  isInline = false,
+  initialRoomCode
 }) => {
   const userId = getOrCreateUserId();
   
@@ -768,6 +770,16 @@ export const CoWatchRoom: React.FC<CoWatchRoomProps> = ({
       console.error(e);
     }
   };
+
+  useEffect(() => {
+    if (initialRoomCode) {
+      setRoomCodeInput(initialRoomCode);
+      setActiveTab('join');
+      if (nickname.trim()) {
+        handleJoinRoom(initialRoomCode);
+      }
+    }
+  }, [initialRoomCode]);
 
   const publicRoomsRef = useRef<RoomData[]>([]);
 

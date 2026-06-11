@@ -39,6 +39,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
   const [showAutoplayOverlay, setShowAutoplayOverlay] = useState(false);
   const [autoplayCountdown, setAutoplayCountdown] = useState(5);
   const [html5Error, setHtml5Error] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedStill, setSelectedStill] = useState<string | null>(null);
 
   const isGoogleDriveLink = episode?.driveUrl.includes('drive.google.com') || false;
@@ -50,6 +52,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
   if (episodeId !== prevEpisodeId) {
     setPrevEpisodeId(episodeId);
     setHtml5Error(null);
+    setLoadError(null);
+    setIsLoading(true);
     setShowAutoplayOverlay(false);
     setIsPlaying(false);
     
@@ -71,6 +75,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerMode, episodeId]);
+
+  // Google Drive IFrame Load Timeout
+  useEffect(() => {
+    if (playerMode !== 'embed') {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadError(null);
+
+    const timer = setTimeout(() => {
+      setIsLoading(currentLoading => {
+        if (currentLoading) {
+          setLoadError('Видео загружается слишком долго. Пожалуйста, откройте его в новой вкладке или попробуйте кастомный плеер.');
+        }
+        return currentLoading;
+      });
+    }, 15000);
+
+    return () => clearTimeout(timer);
+  }, [episodeId, playerMode]);
 
   // Save progress automatically (HTML5 player) every 5 seconds
   useEffect(() => {
@@ -312,6 +338,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
               className="w-full h-full border-none"
               allow="autoplay; fullscreen"
               allowFullScreen
+              onLoad={() => setIsLoading(false)}
             />
           ) : (
             // CUSTOM HTML5 PLAYER
@@ -337,9 +364,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onEnded={handleVideoEnded}
+                    onWaiting={() => setIsLoading(true)}
+                    onCanPlay={() => {
+                      setIsLoading(false);
+                      setLoadError(null);
+                    }}
+                    onPlay={() => setIsLoading(false)}
                     onError={(e) => {
                       console.error('HTML5 Video Error:', e);
                       setHtml5Error('Ваш браузер не может воспроизвести этот видеофайл напрямую. Пожалуйста, используйте встроенный плеер.');
+                      setIsLoading(false);
                     }}
                   />
 
@@ -470,6 +504,47 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ showId, episodeId, onC
                   </div>
                 </>
               )}
+            </div>
+          )}
+
+          {/* Loading and Loading Error Overlays */}
+          {isLoading && !html5Error && !loadError && (
+            <div 
+              className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-30"
+              aria-live="polite"
+            >
+              <div className="w-10 h-10 border-4 border-purple-500/25 border-t-purple-500 rounded-full animate-spin mb-3" />
+              <p className="text-xs font-semibold text-slate-300">Загрузка видео...</p>
+            </div>
+          )}
+
+          {loadError && !html5Error && (
+            <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center text-center p-6 z-35 animate-[scaleIn_0.2s_ease-out] space-y-4">
+              <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto" aria-hidden="true" />
+              <p className="text-sm text-slate-300 font-medium max-w-sm">{loadError}</p>
+              <div className="flex gap-3">
+                {playerMode === 'embed' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlayerMode('html5');
+                      setLoadError(null);
+                      setIsLoading(true);
+                    }}
+                    className="px-4 py-2 bg-slate-800 text-slate-200 hover:bg-slate-700 rounded-lg text-xs font-semibold"
+                  >
+                    Попробовать Кастомный
+                  </button>
+                )}
+                <a
+                  href={episode.driveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-lg shadow-purple-900/35"
+                >
+                  Открыть в новой вкладке
+                </a>
+              </div>
             </div>
           )}
         </div>

@@ -735,7 +735,7 @@ export const NewsView: React.FC = () => {
             <span>Раздел новостей</span>
           </span>
           <h1 className="text-2xl md:text-4xl font-extrabold text-text-primary tracking-tight leading-tight">
-            Новости Сообщества <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent-color to-accent-hover">Pisulka Squad</span>
+            Новости Сообщества <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent-color to-accent-hover">Varicose Squad</span>
           </h1>
           <p className="text-xs md:text-sm text-text-secondary leading-relaxed max-w-xl font-sans">
             Будьте в курсе всех нововведений, событий игрового сервера и расписания релизов! Ставьте оценки новостям и пишите свои отзывы в комментариях.
@@ -780,7 +780,7 @@ export const NewsView: React.FC = () => {
             </span>
             <div>
               <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider font-mono">Поделитесь новостью</h3>
-              <p className="text-[10px] text-text-secondary font-sans leading-relaxed">Любой участник Pisulka Squad может опубликовать новость для всех.</p>
+              <p className="text-[10px] text-text-secondary font-sans leading-relaxed">Любой участник Varicose Squad может опубликовать новость для всех.</p>
             </div>
           </div>
           <button
@@ -1199,7 +1199,7 @@ export const NewsView: React.FC = () => {
                       // Placeholder when image is missing
                       <div className="w-full h-full bg-gradient-to-tr from-accent-light/40 to-bg-card flex flex-col items-center justify-center gap-2 text-text-muted select-none">
                         <Newspaper className="w-8 h-8 opacity-45 group-hover:scale-110 transition-transform duration-300" />
-                        <span className="text-[10px] font-bold tracking-wider font-mono">PISULKA SQUAD</span>
+                        <span className="text-[10px] font-bold tracking-wider font-mono">VARICOSE SQUAD</span>
                       </div>
                     )}
 
