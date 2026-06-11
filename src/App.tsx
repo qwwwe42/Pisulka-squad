@@ -6,6 +6,7 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { AdminPanel } from './components/AdminPanel';
 import { MinecraftView } from './components/MinecraftView';
 import { MinecraftModsView } from './components/MinecraftModsView';
+import { MinecraftRain } from './components/MinecraftRain';
 import { GalleryView } from './components/GalleryView';
 import { CoWatchRoom } from './components/CoWatchRoom';
 import { NewsView } from './components/NewsView';
@@ -69,6 +70,10 @@ function AppContent() {
 
   return (
     <div className={`min-h-screen flex flex-col ${((backgroundsConfig[activeTab]?.imageUrl || backgroundsConfig[activeTab]?.videoUrl) && theme === 'dark') ? 'bg-transparent' : 'bg-bg-app'} text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200 relative z-0`}>
+
+      {activeTab === 'minecraft' && minecraftSubTab === 'mods' && (
+        <MinecraftRain intensity="normal" />
+      )}
 
       {/* Ambient background decoration blobs (for a living, dynamic feel) */}
       <div className="fixed inset-0 pointer-events-none z-[-3] overflow-hidden">
@@ -374,7 +379,7 @@ function AppContent() {
         </aside>
 
         {/* MAIN CONTENT AREA */}
-        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${activeTab === 'minecraft' && !backgroundsConfig['minecraft']?.imageUrl ? 'minecraft-bg-theme' : ''}`}>
+        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${activeTab === 'minecraft' && !backgroundsConfig['minecraft']?.imageUrl ? 'minecraft-bg-theme' : ''} relative z-10`}>
 
           {/* MOBILE HEADER */}
           <header className="md:hidden sticky top-0 z-30 h-16 bg-bg-card/90 backdrop-blur-md border-b border-border-color px-6 flex items-center justify-between shrink-0 transition-colors duration-200">

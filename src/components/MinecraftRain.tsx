@@ -56,23 +56,19 @@ export const MinecraftRain: React.FC<MinecraftRainProps> = ({ intensity = 'norma
     };
 
     const handleResize = () => {
-      const parent = canvas.parentElement;
-      if (parent) {
-        const rect = parent.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        width = rect.width;
-        height = rect.height;
-        
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-        
-        ctx.scale(dpr, dpr);
-        ctx.imageSmoothingEnabled = false;
-        
-        initDrops(getIntensityParams(intensity, width));
-      }
+      const dpr = window.devicePixelRatio || 1;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      
+      ctx.scale(dpr, dpr);
+      ctx.imageSmoothingEnabled = false;
+      
+      initDrops(getIntensityParams(intensity, width));
     };
 
     const draw = () => {
@@ -100,7 +96,7 @@ export const MinecraftRain: React.FC<MinecraftRainProps> = ({ intensity = 'norma
         if (drop.y > height) {
           drop.y = -drop.length;
           // Spawn near the top with some offset to avoid sudden pop-ins
-          drop.x = Math.floor(Math.random() * width);
+          drop.x = Math.floor(Math.random() * (width + 100)) - 50; // offset for tilt spawning
           drop.speed = 4 + Math.random() * 5;
           drop.length = 10 + Math.floor(Math.random() * 8);
         }
@@ -123,12 +119,12 @@ export const MinecraftRain: React.FC<MinecraftRainProps> = ({ intensity = 'norma
     <canvas
       ref={canvasRef}
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
-        width: '100%',
-        height: '100%',
+        width: '100vw',
+        height: '100vh',
         pointerEvents: 'none',
-        zIndex: 0
+        zIndex: 1
       }}
     />
   );
