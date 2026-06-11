@@ -1079,14 +1079,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const prevBg = backgroundsConfig[tabId];
 
           // Skip Firestore operations if the background hasn't changed
-          const isSame = (!bg && !prevBg) || (bg && prevBg && bg.imageUrl === prevBg.imageUrl && bg.overlayOpacity === prevBg.overlayOpacity);
+          const isSame = (!bg && !prevBg) || (bg && prevBg && bg.imageUrl === prevBg.imageUrl && bg.videoUrl === prevBg.videoUrl && bg.overlayOpacity === prevBg.overlayOpacity);
           if (isSame) {
             continue;
           }
 
           if (bg) {
             let imageUrl = bg.imageUrl;
-            if (imageUrl.startsWith('data:image/')) {
+            if (imageUrl && imageUrl.startsWith('data:image/')) {
               try {
                 const storageRef = ref(storage, `backgrounds/${tabId}-${Date.now()}.webp`);
                 
@@ -1113,11 +1113,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
             
             // Set document in Firestore with 15s timeout
+            const docData: any = {
+              overlayOpacity: resolvedConfig[tabId].overlayOpacity
+            };
+            if (resolvedConfig[tabId].imageUrl) docData.imageUrl = resolvedConfig[tabId].imageUrl;
+            if (resolvedConfig[tabId].videoUrl) docData.videoUrl = resolvedConfig[tabId].videoUrl;
+
             await Promise.race([
-              setDoc(doc(db, 'backgrounds', tabId), {
-                imageUrl: resolvedConfig[tabId].imageUrl,
-                overlayOpacity: resolvedConfig[tabId].overlayOpacity
-              }),
+              setDoc(doc(db, 'backgrounds', tabId), docData),
               new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firestore setDoc timeout')), 15000))
             ]);
           } else {

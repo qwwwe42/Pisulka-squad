@@ -186,6 +186,7 @@ export const AdminPanel: React.FC = () => {
   // Backgrounds Form State
   const [editingBgTabId, setEditingBgTabId] = useState<string>('home');
   const [bgImageUrl, setBgImageUrl] = useState('');
+  const [bgVideoUrl, setBgVideoUrl] = useState('');
   const [bgOverlay, setBgOverlay] = useState(80);
   const [isSavingBg, setIsSavingBg] = useState(false);
 
@@ -204,10 +205,12 @@ export const AdminPanel: React.FC = () => {
     if (adminTab === 'backgrounds') {
       const bg = backgroundsConfig[editingBgTabId];
       if (bg) {
-        setBgImageUrl(bg.imageUrl);
+        setBgImageUrl(bg.imageUrl || '');
+        setBgVideoUrl(bg.videoUrl || '');
         setBgOverlay(bg.overlayOpacity);
       } else {
         setBgImageUrl('');
+        setBgVideoUrl('');
         setBgOverlay(80);
       }
     }
@@ -220,22 +223,23 @@ export const AdminPanel: React.FC = () => {
     setIsSavingBg(true);
     try {
       const url = bgImageUrl.trim();
+      const videoUrlVal = bgVideoUrl.trim();
       const newConfig = { ...backgroundsConfig };
       
-      if (!url) {
+      if (!url && !videoUrlVal) {
         delete newConfig[editingBgTabId];
         await updateBackgroundsConfig(newConfig);
         showStatusMsg('Фон успешно удален');
         return;
       }
 
-      // Check if image is valid (only if it's an external URL)
-      if (url.startsWith('http')) {
+      // Check if image is valid (only if it's an external URL and url is provided)
+      if (url && url.startsWith('http')) {
         try {
           await new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
               reject(new Error('Timeout loading image'));
-            }, 15000); // 15s timeout
+            }, 6000); // 6s timeout
             
             const img = new Image();
             img.onload = () => {
@@ -249,16 +253,17 @@ export const AdminPanel: React.FC = () => {
             img.src = url;
           });
         } catch {
-          showStatusMsg('Ошибка: картинка недоступна, битая ссылка или таймаут загрузки', 'error');
-          return;
+          // Warning only, do not block save
+          showStatusMsg('Предупреждение: ссылка на картинку недоступна, но настройки сохранены', 'info');
         }
       }
 
       // Show saving state
-      showStatusMsg('Сохранение фона и загрузка файла...', 'info');
+      showStatusMsg('Сохранение фона...', 'info');
 
       newConfig[editingBgTabId] = {
-        imageUrl: url,
+        imageUrl: url || undefined,
+        videoUrl: videoUrlVal || undefined,
         overlayOpacity: bgOverlay
       };
       
@@ -283,6 +288,7 @@ export const AdminPanel: React.FC = () => {
       await updateBackgroundsConfig(newConfig);
       showStatusMsg('Фон сброшен');
       setBgImageUrl('');
+      setBgVideoUrl('');
       setBgOverlay(80);
     } catch {
       showStatusMsg('Ошибка при сбросе', 'error');
@@ -2891,7 +2897,7 @@ export const AdminPanel: React.FC = () => {
                   }`}
                 >
                   {tab.label}
-                  {backgroundsConfig[tab.id]?.imageUrl && (
+                  {(backgroundsConfig[tab.id]?.imageUrl || backgroundsConfig[tab.id]?.videoUrl) && (
                     <div className="inline-block w-2 h-2 rounded-full bg-emerald-500 ml-2" title="Фон установлен" />
                   )}
                 </button>
@@ -2905,7 +2911,7 @@ export const AdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ссылка (URL) ИЛИ загрузка файла</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ссылка на картинку (Image URL) ИЛИ файл</label>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
@@ -2913,7 +2919,7 @@ export const AdminPanel: React.FC = () => {
                         onChange={(e) => setBgImageUrl(e.target.value)}
                         disabled={isSavingBg}
                         placeholder="https://... или выберите файл"
-                        className="flex-1 bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50 disabled:opacity-55"
+                        className="flex-1 bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50 disabled:opacity-55 font-mono"
                       />
                       <ImageUploader 
                         onImageUploaded={(base64) => setBgImageUrl(base64)}
@@ -2922,6 +2928,22 @@ export const AdminPanel: React.FC = () => {
                         disabled={isSavingBg}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ссылка на фоновое видео (Video URL)</label>
+                    <input
+                      type="text"
+                      value={bgVideoUrl}
+                      onChange={(e) => setBgVideoUrl(e.target.value)}
+                      disabled={isSavingBg}
+                      placeholder="https://... (MP4 / WebM / прямая ссылка с диска)"
+                      className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50 disabled:opacity-55 font-mono"
+                    />
+                    <p className="text-[9px] text-slate-500 leading-normal">
+                      Видео имеет приоритет над картинкой. Поддерживаются форматы MP4, WebM. Для Google Диска используйте формат: 
+                      <code className="text-purple-400 ml-1 select-all font-mono">https://docs.google.com/uc?export=download&id=ID_ФАЙЛА</code>
+                    </p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -2969,7 +2991,27 @@ export const AdminPanel: React.FC = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Предпросмотр</label>
                   <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-800 bg-slate-900 flex items-center justify-center">
-                    {bgImageUrl ? (
+                    {bgVideoUrl ? (
+                      <>
+                        <video
+                          className="absolute inset-0 w-full h-full object-cover"
+                          src={bgVideoUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          key={bgVideoUrl}
+                        />
+                        <div 
+                          className="absolute inset-0"
+                          style={{ backgroundColor: `rgba(0,0,0,${bgOverlay / 100})` }}
+                        />
+                        <div className="relative z-10 w-3/4 h-1/2 rounded-lg bg-slate-900/60 border border-slate-800/80 backdrop-blur flex flex-col items-center justify-center shadow-2xl p-4 text-center">
+                          <span className="text-slate-200 font-bold text-xs sm:text-sm">Пример контента (Видео)</span>
+                          <span className="text-slate-400 text-[9px] sm:text-[10px] mt-1">Текст должен хорошо читаться поверх видео</span>
+                        </div>
+                      </>
+                    ) : bgImageUrl ? (
                       <>
                         <div 
                           className="absolute inset-0 bg-cover bg-center" 
@@ -2980,12 +3022,12 @@ export const AdminPanel: React.FC = () => {
                           style={{ backgroundColor: `rgba(0,0,0,${bgOverlay / 100})` }}
                         />
                         <div className="relative z-10 w-3/4 h-1/2 rounded-lg bg-slate-900/60 border border-slate-800/80 backdrop-blur flex flex-col items-center justify-center shadow-2xl p-4 text-center">
-                          <span className="text-slate-200 font-bold text-sm">Пример контента</span>
-                          <span className="text-slate-400 text-[10px] mt-1">Текст должен хорошо читаться поверх фона</span>
+                          <span className="text-slate-200 font-bold text-xs sm:text-sm">Пример контента (Картинка)</span>
+                          <span className="text-slate-400 text-[9px] sm:text-[10px] mt-1">Текст должен хорошо читаться поверх фона</span>
                         </div>
                       </>
                     ) : (
-                      <span className="text-slate-500 text-xs">Нет изображения</span>
+                      <span className="text-slate-500 text-xs font-semibold">Нет изображения или видео</span>
                     )}
                   </div>
                 </div>

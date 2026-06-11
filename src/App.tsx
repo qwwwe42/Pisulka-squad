@@ -68,21 +68,39 @@ function AppContent() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${(backgroundsConfig[activeTab]?.imageUrl && theme === 'dark') ? 'bg-transparent' : 'bg-bg-app'} text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200 relative z-0`}>
+    <div className={`min-h-screen flex flex-col ${((backgroundsConfig[activeTab]?.imageUrl || backgroundsConfig[activeTab]?.videoUrl) && theme === 'dark') ? 'bg-transparent' : 'bg-bg-app'} text-text-primary font-sans selection:bg-accent-color/20 antialiased w-full transition-colors duration-200 relative z-0`}>
 
-      {/* BACKGROUND IMAGE LAYER */}
-      {backgroundsConfig[activeTab]?.imageUrl && (
+      {/* Ambient background decoration blobs (for a living, dynamic feel) */}
+      <div className="fixed inset-0 pointer-events-none z-[-3] overflow-hidden">
+        <div className="ambient-blob ambient-blob-1" />
+        <div className="ambient-blob ambient-blob-2" />
+        <div className="ambient-blob ambient-blob-3" />
+      </div>
+
+      {/* BACKGROUND MEDIA LAYER */}
+      {((backgroundsConfig[activeTab]?.imageUrl || backgroundsConfig[activeTab]?.videoUrl) && theme === 'dark') && (
         <div className="tab-background">
-          <div 
-            className="fixed inset-0 z-[-2] bg-cover bg-center bg-no-repeat transition-all duration-500"
-            style={{ 
-              backgroundImage: `url("${backgroundsConfig[activeTab].imageUrl}")`,
-              backgroundAttachment: window.innerWidth > 768 ? 'fixed' : 'scroll'
-            }}
-          />
+          {backgroundsConfig[activeTab]?.videoUrl ? (
+            <video
+              className="fixed inset-0 z-[-2] w-full h-full object-cover transition-all duration-500"
+              src={backgroundsConfig[activeTab].videoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <div 
+              className="fixed inset-0 z-[-2] bg-cover bg-center bg-no-repeat transition-all duration-500"
+              style={{ 
+                backgroundImage: `url("${backgroundsConfig[activeTab].imageUrl}")`,
+                backgroundAttachment: window.innerWidth > 768 ? 'fixed' : 'scroll'
+              }}
+            />
+          )}
           <div 
             className="fixed inset-0 z-[-1] transition-all duration-500 pointer-events-none"
-            style={{ backgroundColor: `rgba(0,0,0, ${backgroundsConfig[activeTab].overlayOpacity / 100})` }}
+            style={{ backgroundColor: `rgba(0,0,0, ${(backgroundsConfig[activeTab]?.overlayOpacity ?? 50) / 100})` }}
           />
         </div>
       )}
@@ -132,8 +150,8 @@ function AppContent() {
                 handleBackToCatalog();
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'home' && !activeShowId
-                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer nav-btn-dynamic ${activeTab === 'home' && !activeShowId
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft active-nav-btn'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
                 }`}
             >
@@ -148,8 +166,8 @@ function AppContent() {
                 handleBackToCatalog();
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'shows' || activeShowId
-                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer nav-btn-dynamic ${activeTab === 'shows' || activeShowId
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft active-nav-btn'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
                 }`}
             >
@@ -164,8 +182,8 @@ function AppContent() {
                 handleBackToCatalog();
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'news'
-                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer nav-btn-dynamic ${activeTab === 'news'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft active-nav-btn'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
                 }`}
             >
@@ -177,7 +195,7 @@ function AppContent() {
             <div className="flex flex-col">
               <button
                 onClick={() => setIsGamesMenuOpen(!isGamesMenuOpen)}
-                className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-between transition-all text-left cursor-pointer ${
+                className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-between transition-all text-left cursor-pointer btn-dynamic ${
                   ['minecraft', 'cowatch', 'bunker'].includes(activeTab) || isGamesMenuOpen
                     ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
                     : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
@@ -203,9 +221,9 @@ function AppContent() {
                     handleBackToCatalog();
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 ${
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 nav-btn-dynamic ${
                     activeTab === 'bunker'
-                      ? 'bg-accent-color/10 text-accent-color'
+                      ? 'bg-accent-color/10 text-accent-color active-nav-btn'
                       : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
                   }`}
                 >
@@ -220,9 +238,9 @@ function AppContent() {
                     handleBackToCatalog();
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 ${
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 nav-btn-dynamic ${
                     activeTab === 'cowatch'
-                      ? 'bg-accent-color/10 text-accent-color'
+                      ? 'bg-accent-color/10 text-accent-color active-nav-btn'
                       : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
                   }`}
                 >
@@ -239,11 +257,11 @@ function AppContent() {
                       handleBackToCatalog();
                       // We don't close mobile menu here to let users select sub-tabs if they want
                     }}
-                    className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 ${
+                    className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer flex items-center gap-2 nav-btn-dynamic ${
                       activeTab === 'minecraft' && minecraftSubTab === 'main'
-                        ? 'bg-accent-color/10 text-accent-color'
+                        ? 'bg-accent-color/10 text-accent-color active-nav-btn'
                         : activeTab === 'minecraft'
-                        ? 'text-text-primary bg-bg-app/50'
+                        ? 'text-text-primary bg-bg-app/50 active-nav-btn'
                         : 'text-text-secondary hover:text-text-primary hover:bg-bg-app'
                     }`}
                   >
@@ -295,8 +313,8 @@ function AppContent() {
                 handleBackToCatalog();
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer ${activeTab === 'gallery'
-                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+              className={`w-full px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all text-left cursor-pointer nav-btn-dynamic ${activeTab === 'gallery'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft active-nav-btn'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
                 }`}
             >
@@ -318,8 +336,8 @@ function AppContent() {
                   setShowPasswordModal(true);
                 }
               }}
-              className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer ${activeTab === 'admin'
-                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft'
+              className={`w-full px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer nav-btn-dynamic ${activeTab === 'admin'
+                  ? 'bg-accent-light text-accent-color border border-accent-color/10 shadow-soft active-nav-btn'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-app border border-transparent'
                 }`}
             >
@@ -387,7 +405,10 @@ function AppContent() {
           </header>
 
           {/* Viewport content */}
-          <main className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-10 py-6 overflow-y-auto">
+          <main 
+            key={activeTab + (activeShowId || '') + (activeEpisodeId || '')} 
+            className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-10 py-6 overflow-y-auto animate-page-transition"
+          >
             {activeTab === 'admin' ? (
               // Render Admin Panel
               <AdminPanel />

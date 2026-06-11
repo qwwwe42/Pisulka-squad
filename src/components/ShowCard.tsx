@@ -34,7 +34,7 @@ export const ShowCard: React.FC<ShowCardProps> = ({ show, onClick }) => {
   return (
     <div 
       onClick={onClick}
-      className="group relative bg-bg-card rounded-3xl overflow-hidden border border-border-color shadow-soft hover:shadow-hover hover:scale-[1.01] hover:border-accent-color/30 transition-all duration-300 cursor-pointer flex flex-col h-full"
+      className="group relative bg-bg-card rounded-3xl overflow-hidden border border-border-color shadow-soft card-glow-hover cursor-pointer flex flex-col h-full"
     >
       {/* Thumbnail Container */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-bg-app shrink-0">
@@ -42,7 +42,7 @@ export const ShowCard: React.FC<ShowCardProps> = ({ show, onClick }) => {
           <img 
             src={show.thumbnailImage} 
             alt={show.title}
-            className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 ease-out"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
             loading="lazy"
           />
         ) : (
@@ -52,8 +52,8 @@ export const ShowCard: React.FC<ShowCardProps> = ({ show, onClick }) => {
         )}
         
         {/* Hover Overlay Play Button */}
-        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <div className="p-3 bg-accent-color text-white rounded-full shadow-soft scale-90 group-hover:scale-100 transition-transform duration-300 ease-out hover:bg-accent-hover">
+        <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className="p-3 bg-accent-color text-white rounded-full shadow-soft scale-90 group-hover:scale-100 transition-transform duration-300 ease-out hover:bg-accent-hover hover:shadow-[0_0_15px_var(--accent-color)]">
             <Play className="w-5 h-5 fill-current ml-0.5" />
           </div>
         </div>
@@ -84,7 +84,7 @@ export const ShowCard: React.FC<ShowCardProps> = ({ show, onClick }) => {
       {/* Info details */}
       <div className="p-4.5 flex flex-col flex-1 justify-between gap-1.5">
         <div>
-          <h4 className="text-sm font-extrabold text-text-primary group-hover:text-accent-color line-clamp-1 transition-colors duration-200">
+          <h4 className="text-sm font-extrabold text-text-primary group-hover:text-accent-color line-clamp-1 transition-all duration-300 group-hover:translate-x-1">
             {show.title}
           </h4>
           <p className="text-xs text-text-secondary line-clamp-2 mt-1 leading-relaxed">

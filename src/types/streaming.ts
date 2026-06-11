@@ -41,7 +41,8 @@ export interface ReactionsConfig {
 }
 
 export interface TabBackground {
-  imageUrl: string;
+  imageUrl?: string;
+  videoUrl?: string;
   overlayOpacity: number; // 0 to 100
 }
 
