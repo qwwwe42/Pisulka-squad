@@ -9,8 +9,10 @@ export const MinecraftModsView: React.FC = () => {
   const modpack = minecraftConfig?.modpack;
 
   return (
-    <div className="minecraft-view-container glass-panel relative min-h-screen w-full flex flex-col items-center" style={{ zIndex: 9999 }}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0 pointer-events-none mods-overlay" />
+    <div className="w-full min-h-screen relative">
+      <div className="absolute inset-0 bg-bg-app rounded-[32px] pointer-events-none" style={{ zIndex: 9998 }} />
+      <div className="minecraft-view-container glass-panel relative min-h-screen w-full flex flex-col items-center" style={{ zIndex: 9999 }}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0 pointer-events-none mods-overlay" />
       
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-8 py-12 pb-32 animate-fade-in flex flex-col flex-1">
         
@@ -132,5 +134,6 @@ export const MinecraftModsView: React.FC = () => {
 
       </div>
     </div>
+  </div>
   );
 };

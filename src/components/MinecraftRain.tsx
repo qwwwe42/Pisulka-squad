@@ -124,7 +124,7 @@ export const MinecraftRain: React.FC<MinecraftRainProps> = ({ intensity = 'norma
         width: '100vw',
         height: '100vh',
         pointerEvents: 'none',
-        zIndex: 9998
+        zIndex: 1
       }}
     />
   );
