@@ -22,6 +22,53 @@ const DEFAULT_PLAYERS: MinecraftPlayer[] = [
   { name: 'miner_49er', role: 'Игрок', online: true }
 ];
 
+// Timezone helpers
+const formatKyivDateTimeLocal = (dateOrIso: string) => {
+  if (!dateOrIso) return '';
+  try {
+    const date = new Date(dateOrIso);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/Kiev',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const p: Record<string, string> = {};
+    parts.forEach(part => { p[part.type] = part.value; });
+    // Return in format YYYY-MM-DDTHH:mm
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+  } catch (e) {
+    console.error('Failed to format Kyiv date:', e);
+    return '';
+  }
+};
+
+const parseKyivDateTimeLocal = (kyivDateTimeStr: string) => {
+  const utcDate = new Date(kyivDateTimeStr + ":00Z");
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Kiev',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(utcDate);
+  const p: Record<string, string> = {};
+  parts.forEach(part => { p[part.type] = part.value; });
+  
+  const formattedUTCDate = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour),
+    Number(p.minute),
+    Number(p.second || 0)
+  );
+  
+  const offsetMs = formattedUTCDate - utcDate.getTime();
+  return new Date(utcDate.getTime() - offsetMs);
+};
+
 export const AdminPanel: React.FC = () => {
   const { 
     shows, addShow, updateShow, deleteShow, 
@@ -29,7 +76,8 @@ export const AdminPanel: React.FC = () => {
     news, addNews, updateNews, deleteNews,
     minecraftConfig, updateMinecraftConfig,
     reactionsConfig, updateReactionsConfig,
-    backgroundsConfig, updateBackgroundsConfig
+    backgroundsConfig, updateBackgroundsConfig,
+    eventTimerConfig, updateEventTimerConfig
   } = useStreaming();
 
   // Unique actors pool database aggregated from all shows
@@ -56,7 +104,7 @@ export const AdminPanel: React.FC = () => {
   }, [shows]);
 
   // Tabs
-  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions' | 'backgrounds' | 'bunker_db'>('shows');
+  const [adminTab, setAdminTab] = useState<'shows' | 'episodes' | 'schedule' | 'db' | 'manage' | 'news' | 'minecraft' | 'reactions' | 'backgrounds' | 'bunker_db' | 'event_timer'>('shows');
 
   // Notification message
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -189,6 +237,51 @@ export const AdminPanel: React.FC = () => {
   const [bgVideoUrl, setBgVideoUrl] = useState('');
   const [bgOverlay, setBgOverlay] = useState(80);
   const [isSavingBg, setIsSavingBg] = useState(false);
+
+  // Event Timer Form State
+  const [timerEventName, setTimerEventName] = useState('');
+  const [timerEndDatetime, setTimerEndDatetime] = useState('');
+  const [timerIsActive, setTimerIsActive] = useState(true);
+  const [timerBgImageUrl, setTimerBgImageUrl] = useState('');
+  const [timerFinishText, setTimerFinishText] = useState('');
+  const [isSavingTimer, setIsSavingTimer] = useState(false);
+
+  // Load event timer settings when tab changes
+  React.useEffect(() => {
+    if (adminTab === 'event_timer' && eventTimerConfig) {
+      setTimerEventName(eventTimerConfig.eventName);
+      setTimerEndDatetime(formatKyivDateTimeLocal(eventTimerConfig.endDatetime));
+      setTimerIsActive(eventTimerConfig.isActive);
+      setTimerBgImageUrl(eventTimerConfig.bgImageUrl || '');
+      setTimerFinishText(eventTimerConfig.finishText);
+    }
+  }, [adminTab, eventTimerConfig]);
+
+  const handleSaveTimer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!timerEventName.trim() || !timerEndDatetime) {
+      showStatusMsg('Заполните обязательные поля', 'error');
+      return;
+    }
+    setIsSavingTimer(true);
+    try {
+      const utcDate = parseKyivDateTimeLocal(timerEndDatetime);
+      
+      await updateEventTimerConfig({
+        eventName: timerEventName.trim(),
+        endDatetime: utcDate.toISOString(),
+        isActive: timerIsActive,
+        bgImageUrl: timerBgImageUrl.trim() || undefined,
+        finishText: timerFinishText.trim() || 'Событие началось!'
+      });
+      showStatusMsg('Настройки таймера ивентов сохранены');
+    } catch (err) {
+      console.error(err);
+      showStatusMsg('Не удалось сохранить настройки таймера', 'error');
+    } finally {
+      setIsSavingTimer(false);
+    }
+  };
 
   const TABS_FOR_BG = [
     { id: 'home', label: 'Главная' },
@@ -888,6 +981,15 @@ export const AdminPanel: React.FC = () => {
             >
               <Database className="w-4 h-4" />
               База Бункера
+            </button>
+            <button
+              onClick={() => setAdminTab('event_timer')}
+              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors ${
+                adminTab === 'event_timer' ? 'bg-purple-650/15 text-purple-400 border border-purple-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Таймер ивентов
             </button>
           </nav>
         </div>
@@ -3031,6 +3133,109 @@ export const AdminPanel: React.FC = () => {
                     )}
                   </div>
                 </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 9: EVENT TIMER CONFIG */}
+        {adminTab === 'event_timer' && (
+          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] font-sans">
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider font-sans">
+                Таймер обратного отсчета
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                Настройте таймер для ближайшего события на главной странице. Таймер автоматически учитывает часовые пояса пользователей.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveTimer} className="bg-slate-950/45 border border-slate-900 rounded-xl p-4 space-y-4 font-sans">
+              <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider font-sans">
+                Настройки таймера
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5 font-sans">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Название события *</label>
+                  <input
+                    type="text"
+                    value={timerEventName}
+                    onChange={(e) => setTimerEventName(e.target.value)}
+                    placeholder="Например: Запуск сервера Minecraft"
+                    className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5 font-sans">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Дата и время окончания (по Киеву) *</label>
+                  <input
+                    type="datetime-local"
+                    value={timerEndDatetime}
+                    onChange={(e) => setTimerEndDatetime(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                    required
+                  />
+                  <small className="text-[9px] text-slate-500 leading-normal block mt-1">
+                    Введите дату и время события. Время будет автоматически сконвертировано в правильный часовой пояс Europe/Kiev.
+                  </small>
+                </div>
+
+                <div className="space-y-1.5 font-sans md:col-span-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Фоновое изображение</label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={timerBgImageUrl}
+                      onChange={(e) => setTimerBgImageUrl(e.target.value)}
+                      placeholder="Ссылка на изображение или загрузите файл"
+                      className="flex-1 bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                    />
+                    <ImageUploader 
+                      onImageUploaded={(base64) => setTimerBgImageUrl(base64)}
+                      maxWidth={1200}
+                      className="shrink-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 font-sans">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Текст по окончании отсчета *</label>
+                  <input
+                    type="text"
+                    value={timerFinishText}
+                    onChange={(e) => setTimerFinishText(e.target.value)}
+                    placeholder="Например: Сервер запущен!"
+                    className="w-full bg-slate-900 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500/50"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5 font-sans flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => setTimerIsActive(!timerIsActive)}
+                    className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer h-[34px] ${
+                      timerIsActive
+                        ? 'bg-emerald-950/20 border-emerald-900/40 text-emerald-400'
+                        : 'bg-slate-900 border-slate-850 text-slate-500'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${timerIsActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                    {timerIsActive ? 'Таймер включен' : 'Таймер выключен'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4 flex border-t border-slate-800/60 font-sans">
+                <button
+                  type="submit"
+                  disabled={isSavingTimer}
+                  className="px-6 py-2.5 bg-purple-650 hover:bg-purple-600 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-950/20 cursor-pointer ml-auto active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {isSavingTimer ? 'Сохранение...' : 'Сохранить настройки таймера'}
+                </button>
               </div>
             </form>
           </div>

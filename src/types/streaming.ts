@@ -156,3 +156,11 @@ export interface GalleryItem {
   createdAt: string; // ISO timestamp
 }
 
+export interface EventTimerConfig {
+  eventName: string;
+  endDatetime: string; // ISO string format in UTC
+  isActive: boolean;
+  bgImageUrl?: string;
+  finishText: string;
+}
+

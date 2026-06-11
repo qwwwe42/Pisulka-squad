@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { db, storage } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem, EmojiItem, ReactionsConfig, BackgroundsConfig, TabBackground } from '../types/streaming';
+import type { Show, Episode, WatchProgress, Comment, NewsArticle, MinecraftConfig, GalleryItem, EmojiItem, ReactionsConfig, BackgroundsConfig, TabBackground, EventTimerConfig } from '../types/streaming';
 
 
 interface StreamingContextType {
@@ -41,6 +41,8 @@ interface StreamingContextType {
   deleteGalleryItem: (itemId: string) => Promise<void>;
   backgroundsConfig: BackgroundsConfig;
   updateBackgroundsConfig: (config: BackgroundsConfig) => Promise<void>;
+  eventTimerConfig: EventTimerConfig;
+  updateEventTimerConfig: (config: EventTimerConfig) => Promise<void>;
   loadDemoData: () => void;
   clearAllData: () => void;
   isFirebaseConnected: boolean;
@@ -189,6 +191,14 @@ export const DEFAULT_MINECRAFT_CONFIG: MinecraftConfig = {
   mods: []
 };
 
+export const DEFAULT_EVENT_TIMER_CONFIG: EventTimerConfig = {
+  eventName: 'Запуск сервера Minecraft',
+  endDatetime: '2026-06-12T12:00:00.000Z',
+  isActive: true,
+  bgImageUrl: 'https://images.unsplash.com/photo-1607988795691-3d0147b43231?q=80&w=1200&auto=format&fit=crop',
+  finishText: 'Сервер запущен!'
+};
+
 // ======================================================================
 // LocalStorage helpers — localStorage is the definitive source of truth
 // ======================================================================
@@ -324,6 +334,14 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return cached ? JSON.parse(cached) : {};
     } catch {
       return {};
+    }
+  });
+  const [eventTimerConfig, setEventTimerConfig] = useState<EventTimerConfig>(() => {
+    try {
+      const cached = localStorage.getItem('penis_ink_event_timer_config');
+      return cached ? JSON.parse(cached) : DEFAULT_EVENT_TIMER_CONFIG;
+    } catch {
+      return DEFAULT_EVENT_TIMER_CONFIG;
     }
   });
   const [activeShowId, setActiveShowId] = useState<string | null>(null);
@@ -590,11 +608,24 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             config[docSnap.id] = docSnap.data() as TabBackground;
           });
           setBackgroundsConfig(config);
-          localStorage.setItem('penis_ink_backgrounds_config', JSON.stringify(config));
         }, (error) => {
           console.warn('Firestore backgrounds config onSnapshot error:', error);
         });
 
+        // Start real-time listener for event timer settings
+        const unsubEventTimer = onSnapshot(doc(db, 'settings', 'event_timer'), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as EventTimerConfig;
+            setEventTimerConfig(data);
+            localStorage.setItem('penis_ink_event_timer_config', JSON.stringify(data));
+          } else {
+            setDoc(doc(db, 'settings', 'event_timer'), DEFAULT_EVENT_TIMER_CONFIG).catch(console.error);
+            setEventTimerConfig(DEFAULT_EVENT_TIMER_CONFIG);
+            localStorage.setItem('penis_ink_event_timer_config', JSON.stringify(DEFAULT_EVENT_TIMER_CONFIG));
+          }
+        }, (error) => {
+          console.warn('Firestore event timer config onSnapshot error:', error);
+        });
 
         unsubscribeRef.current = () => {
           unsub();
@@ -603,6 +634,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           unsubGallery();
           unsubReactions();
           unsubBackgrounds();
+          unsubEventTimer();
         };
       } catch (err) {
         console.warn('Firebase connection failed, using localStorage:', err);
@@ -651,6 +683,18 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           ];
           setGallery(demoItems);
           localStorage.setItem('penis_ink_gallery', JSON.stringify(demoItems));
+        }
+
+        const cachedEventTimer = localStorage.getItem('penis_ink_event_timer_config');
+        if (!cachedEventTimer) {
+          setEventTimerConfig(DEFAULT_EVENT_TIMER_CONFIG);
+          localStorage.setItem('penis_ink_event_timer_config', JSON.stringify(DEFAULT_EVENT_TIMER_CONFIG));
+        } else {
+          try {
+            setEventTimerConfig(JSON.parse(cachedEventTimer));
+          } catch {
+            setEventTimerConfig(DEFAULT_EVENT_TIMER_CONFIG);
+          }
         }
       }
     };
@@ -1145,6 +1189,19 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const updateEventTimerConfig = async (newConfig: EventTimerConfig) => {
+    setEventTimerConfig(newConfig);
+    localStorage.setItem('penis_ink_event_timer_config', JSON.stringify(newConfig));
+
+    if (isFirebaseConnectedRef.current) {
+      try {
+        await setDoc(doc(db, 'settings', 'event_timer'), newConfig);
+      } catch (e) {
+        handleWriteFailure(e);
+      }
+    }
+  };
+
   const updateReactionsConfig = async (newConfig: ReactionsConfig) => {
     setReactionsConfig(newConfig);
     localStorage.setItem('penis_ink_reactions_config', JSON.stringify(newConfig));
@@ -1353,6 +1410,8 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       updateReactionsConfig,
       backgroundsConfig,
       updateBackgroundsConfig,
+      eventTimerConfig,
+      updateEventTimerConfig,
       toggleNewsReaction,
       voteNewsPoll,
       gallery,

@@ -48,9 +48,44 @@ function triggerCelebration() {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, onSelectNews, mode = 'home' }) => {
-  const { shows, watchProgress, loadDemoData, news, addNews } = useStreaming();
+  const { shows, watchProgress, loadDemoData, news, addNews, eventTimerConfig } = useStreaming();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  
+  // Event Timer states
+  const [eventTimeLeft, setEventTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+  const [eventTimerIsDone, setEventTimerIsDone] = useState(false);
+
+  useEffect(() => {
+    if (!eventTimerConfig || !eventTimerConfig.isActive) {
+      setEventTimeLeft(null);
+      return;
+    }
+
+    const targetTime = new Date(eventTimerConfig.endDatetime).getTime();
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const difference = targetTime - now;
+
+      if (difference <= 0) {
+        setEventTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        setEventTimerIsDone(true);
+      } else {
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+        
+        setEventTimeLeft({ days, hours, minutes, seconds });
+        setEventTimerIsDone(false);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [eventTimerConfig]);
   
   // Public News Modal State
   const [showAddNewsModal, setShowAddNewsModal] = useState(false);
@@ -138,6 +173,81 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
   return (
     <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] glass-panel">
       
+      {/* EVENT COUNTDOWN TIMER BANNER */}
+      {mode === 'home' && eventTimerConfig && eventTimerConfig.isActive && (
+        <div 
+          className="relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card shadow-soft transition-all duration-500 bg-cover bg-center min-h-[220px] flex items-center p-6 md:p-8 group"
+          style={{ 
+            backgroundImage: `url("${eventTimerConfig.bgImageUrl || 'https://images.unsplash.com/photo-1607988795691-3d0147b43231?q=80&w=1200&auto=format&fit=crop'}")` 
+          }}
+        >
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs transition-opacity group-hover:bg-black/60 duration-300 z-0" />
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-accent-color/15 rounded-full filter blur-3xl z-0 pointer-events-none group-hover:bg-accent-color/20 transition-all duration-500" />
+          
+          <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-center md:text-left space-y-2 max-w-xl">
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-accent-light text-accent-color border border-accent-color/25 inline-block animate-pulse">
+                Активное событие
+              </span>
+              <h2 className="text-xl md:text-3xl font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
+                {eventTimerConfig.eventName}
+              </h2>
+              {!eventTimerIsDone && (
+                <p className="text-[11px] text-text-secondary">
+                  До запуска осталось совсем немного! Следите за обратным отсчетом.
+                </p>
+              )}
+            </div>
+
+            <div className="shrink-0 w-full md:w-auto flex justify-center">
+              {!eventTimerIsDone && eventTimeLeft ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 bg-bg-app/80 border border-border-color rounded-2xl flex items-center justify-center text-xl font-black text-text-primary font-mono shadow-md backdrop-blur-sm">
+                      {eventTimeLeft.days.toString().padStart(2, '0')}
+                    </div>
+                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest mt-1">дн</span>
+                  </div>
+                  
+                  <span className="text-xl font-bold text-white mb-4">:</span>
+
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 bg-bg-app/80 border border-border-color rounded-2xl flex items-center justify-center text-xl font-black text-text-primary font-mono shadow-md backdrop-blur-sm">
+                      {eventTimeLeft.hours.toString().padStart(2, '0')}
+                    </div>
+                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest mt-1">ч</span>
+                  </div>
+
+                  <span className="text-xl font-bold text-white mb-4">:</span>
+
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 bg-bg-app/80 border border-border-color rounded-2xl flex items-center justify-center text-xl font-black text-text-primary font-mono shadow-md backdrop-blur-sm">
+                      {eventTimeLeft.minutes.toString().padStart(2, '0')}
+                    </div>
+                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest mt-1">мин</span>
+                  </div>
+
+                  <span className="text-xl font-bold text-white mb-4">:</span>
+
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 bg-accent-color border border-accent-color/30 rounded-2xl flex items-center justify-center text-xl font-black text-white font-mono shadow-lg shadow-accent-color/20">
+                      {eventTimeLeft.seconds.toString().padStart(2, '0')}
+                    </div>
+                    <span className="text-[9px] font-bold text-accent-color uppercase tracking-widest mt-1">сек</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-6 py-4 text-center backdrop-blur-sm animate-[scaleIn_0.3s_ease-out] shadow-md shadow-emerald-950/10">
+                  <span className="text-lg md:text-xl font-black text-emerald-400 uppercase tracking-wider block drop-shadow-md animate-pulse">
+                    {eventTimerConfig.finishText}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. HERO BANNER & TIMER */}
       {mode === 'home' && (
         featuredShow ? (
