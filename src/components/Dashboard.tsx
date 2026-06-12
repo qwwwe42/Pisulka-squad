@@ -267,7 +267,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
         <div 
           className="relative rounded-[32px] overflow-hidden border border-border-color bg-bg-card shadow-soft transition-all duration-500 bg-cover bg-center min-h-[220px] flex items-center p-6 md:p-8 group"
           style={{ 
-            backgroundImage: `url("${eventTimerConfig.bgImageUrl || 'https://images.unsplash.com/photo-1607988795691-3d0147b43231?q=80&w=1200&auto=format&fit=crop'}")` 
+            backgroundImage: `url("${eventTimerConfig.bgImageUrl || '/images/minecraft_cat.png'}")` 
           }}
         >
           <div className="absolute inset-0 bg-black/65 backdrop-blur-xs transition-opacity group-hover:bg-black/60 duration-300 z-0" />

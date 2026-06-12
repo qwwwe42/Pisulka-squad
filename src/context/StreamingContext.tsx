@@ -198,7 +198,7 @@ export const DEFAULT_EVENT_TIMER_CONFIG: EventTimerConfig = {
   eventName: 'Запуск сервера Minecraft',
   endDatetime: '2026-06-12T12:00:00.000Z',
   isActive: true,
-  bgImageUrl: 'https://images.unsplash.com/photo-1607988795691-3d0147b43231?q=80&w=1200&auto=format&fit=crop',
+  bgImageUrl: '/images/minecraft_cat.png',
   finishText: 'Сервер запущен!'
 };
 
