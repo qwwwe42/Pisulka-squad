@@ -5,6 +5,7 @@ import { Play, Search, Clock, Calendar, Plus, X, FileText, CheckCircle2, Newspap
 import { ImageUploader } from './ImageUploader';
 import { NewsVideoField } from './NewsVideoField';
 import { LiveCoWatchWidget } from './LiveCoWatchWidget';
+import { getGoogleDriveFileId } from '../utils/drive';
 
 interface DashboardProps {
   onSelectShow: (showId: string) => void;
@@ -51,6 +52,13 @@ function triggerCelebration() {
     if (el) el.remove();
   }, 10000);
 }
+
+const getGoogleDriveThumbnail = (url: string): string | null => {
+  if (!url) return null;
+  const fileId = getGoogleDriveFileId(url);
+  if (!fileId) return null;
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+};
 
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpisode, onSelectNews, onNavigateToShows, mode = 'home' }) => {
   const { shows, watchProgress, loadDemoData, news, addNews, eventTimerConfig } = useStreaming();
@@ -717,11 +725,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectShow, onSelectEpis
                         if (ytThumb) {
                           return <img src={ytThumb} alt={item.title} className="w-full h-full object-cover" />;
                         }
-                        const isDirect = item.videoUrl && !item.videoUrl.match(regExp) && !item.videoUrl.includes('drive.google.com');
+                        const gdThumb = getGoogleDriveThumbnail(item.videoUrl);
+                        if (gdThumb) {
+                          return <img src={gdThumb} alt={item.title} className="w-full h-full object-cover" />;
+                        }
+                        const isDirect = item.videoUrl && !item.videoUrl.match(regExp) && !getGoogleDriveFileId(item.videoUrl);
                         if (isDirect) {
                           return (
                             <video 
-                              src={item.videoUrl} 
+                              src={`${item.videoUrl}#t=0.1`} 
                               className="w-full h-full object-cover" 
                               preload="metadata" 
                               muted 

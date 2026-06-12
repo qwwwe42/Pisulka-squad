@@ -6,8 +6,9 @@ import {
   Award, X, CornerDownRight, Plus, Play, Film, ArrowUpDown
 } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
+import { createPortal } from 'react-dom';
 import { NewsVideoField } from './NewsVideoField';
-import { getGoogleDriveEmbedUrl } from '../utils/drive';
+import { getGoogleDriveEmbedUrl, getGoogleDriveFileId } from '../utils/drive';
 
 // YouTube utilities
 const getYouTubeEmbedUrl = (url: string): string | null => {
@@ -22,6 +23,13 @@ const getYouTubeThumbnail = (url: string): string | null => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? `https://img.youtube.com/vi/${match[2]}/0.jpg` : null;
+};
+
+const getGoogleDriveThumbnail = (url: string): string | null => {
+  if (!url) return null;
+  const fileId = getGoogleDriveFileId(url);
+  if (!fileId) return null;
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
 };
 
 const renderNewsVideoPlayer = (url: string) => {
@@ -679,12 +687,24 @@ export const NewsView: React.FC = () => {
     );
   };
 
-  // ── Body scroll lock when overlay is open ───────────────────────────────
+  // ── Scroll lock when overlay is open ───────────────────────────────
   useEffect(() => {
     if (!activeNewsId) return;
-    const prev = document.body.style.overflow;
+    const prevBody = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+
+    const mainEl = document.getElementById('main-content');
+    const prevMain = mainEl ? mainEl.style.overflow : '';
+    if (mainEl) {
+      mainEl.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.body.style.overflow = prevBody;
+      if (mainEl) {
+        mainEl.style.overflow = prevMain;
+      }
+    };
   }, [activeNewsId]);
 
   // ── Esc key closes the overlay ────────────────────────────────────────────
@@ -1151,11 +1171,22 @@ export const NewsView: React.FC = () => {
                             />
                           );
                         }
+                        const gdThumb = getGoogleDriveThumbnail(item.videoUrl);
+                        if (gdThumb) {
+                          return (
+                            <img 
+                              src={gdThumb} 
+                              alt={item.title} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              loading="lazy"
+                            />
+                          );
+                        }
                         const isDirect = item.videoUrl && !getYouTubeEmbedUrl(item.videoUrl) && !getGoogleDriveEmbedUrl(item.videoUrl);
                         if (isDirect) {
                           return (
                             <video 
-                              src={item.videoUrl} 
+                              src={`${item.videoUrl}#t=0.1`} 
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                               preload="metadata"
                               muted
@@ -1276,7 +1307,7 @@ export const NewsView: React.FC = () => {
           Rendered on top of everything when a card is clicked.
           z-50 covers sidebar, header, and the main scroll container.
       ══════════════════════════════════════════════════════════════ */}
-      {activeNewsId && (
+      {activeNewsId && createPortal(
         <div
           className="modal-overlay-enter fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}
@@ -1556,7 +1587,8 @@ export const NewsView: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

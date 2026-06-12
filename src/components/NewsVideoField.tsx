@@ -34,18 +34,20 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
   const [fileName, setFileName] = useState<string>('');
   const [fileSize, setFileSize] = useState<string>('');
   const [localWarning, setLocalWarning] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // If URL changes to empty, reset file metadata
   useEffect(() => {
-    if (!videoUrl) {
+    const url = videoUrl || '';
+    if (!url) {
       setFileName('');
       setFileSize('');
       setLocalWarning(null);
-    } else if (videoUrl.startsWith('https://firebasestorage.googleapis.com')) {
+    } else if (url.startsWith('https://firebasestorage.googleapis.com')) {
       // Parse file name from Firebase URL if not set
       if (!fileName) {
         try {
-          const decoded = decodeURIComponent(videoUrl);
+          const decoded = decodeURIComponent(url);
           const parts = decoded.split('/');
           const fileNameWithToken = parts[parts.length - 1];
           const nameOnly = fileNameWithToken.split('?')[0];
@@ -56,7 +58,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
           setFileName('Видеофайл в облаке');
         }
       }
-    } else if (videoUrl.startsWith('data:video/')) {
+    } else if (url.startsWith('data:video/')) {
       if (!fileName) {
         setFileName('Локальный видеофайл');
       }
@@ -67,6 +69,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
     if (!file) return;
 
     if (onError) onError(null);
+    setLocalError(null);
     setLocalWarning(null);
 
     // Validate type
@@ -74,6 +77,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
     if (!validTypes.includes(file.type)) {
       const msg = 'Неподдерживаемый формат. Допускаются только MP4, WebM, Ogg, QuickTime.';
       if (onError) onError(msg);
+      setLocalError(msg);
       return;
     }
 
@@ -83,6 +87,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
     if (file.size > maxSize) {
       const msg = `Файл слишком большой. Максимальный размер видео — ${MAX_SIZE_MB} МБ.`;
       if (onError) onError(msg);
+      setLocalError(msg);
       return;
     }
 
@@ -113,6 +118,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
     } catch (err: any) {
       const errMsg = err?.message || 'Ошибка при загрузке видеофайла.';
       if (onError) onError(errMsg);
+      setLocalError(errMsg);
       setFileName('');
       setFileSize('');
     } finally {
@@ -157,7 +163,16 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
     setFileName('');
     setFileSize('');
     setLocalWarning(null);
+    setLocalError(null);
     if (onError) onError(null);
+  };
+
+  const handleSourceChange = (newSource: 'link' | 'upload') => {
+    onSourceChange(newSource);
+    onVideoUrlChange('');
+    if (onError) onError(null);
+    setLocalWarning(null);
+    setLocalError(null);
   };
 
   return (
@@ -173,7 +188,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
           role="tab"
           aria-selected={source === 'link'}
           disabled={disabled || isUploading}
-          onClick={() => onSourceChange('link')}
+          onClick={() => handleSourceChange('link')}
           className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-color focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
             source === 'link'
               ? 'bg-accent-color text-white shadow-soft'
@@ -187,7 +202,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
           role="tab"
           aria-selected={source === 'upload'}
           disabled={disabled || isUploading}
-          onClick={() => onSourceChange('upload')}
+          onClick={() => handleSourceChange('upload')}
           className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-accent-color focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
             source === 'upload'
               ? 'bg-accent-color text-white shadow-soft'
@@ -203,7 +218,7 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
         <div className="space-y-1.5">
           <input
             type="url"
-            value={videoUrl.startsWith('data:') ? '' : videoUrl}
+            value={(videoUrl || '').startsWith('data:') ? '' : videoUrl}
             onChange={(e) => onVideoUrlChange(e.target.value)}
             disabled={disabled}
             placeholder="Вставьте ссылку на видео (YouTube, Google Drive, MP4)..."
@@ -301,9 +316,9 @@ export const NewsVideoField: React.FC<NewsVideoFieldProps> = ({
       )}
 
       {/* Inline form error display */}
-      {error && !localWarning && (
+      {(error || localError) && !localWarning && (
         <div className="text-xs text-rose-500 font-semibold px-1 font-sans">
-          {error}
+          {error || localError}
         </div>
       )}
     </div>
