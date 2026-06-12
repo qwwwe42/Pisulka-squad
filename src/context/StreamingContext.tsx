@@ -196,7 +196,7 @@ export const DEFAULT_MINECRAFT_CONFIG: MinecraftConfig = {
 
 export const DEFAULT_EVENT_TIMER_CONFIG: EventTimerConfig = {
   eventName: 'Запуск сервера Minecraft',
-  endDatetime: '2026-06-12T12:00:00.000Z',
+  endDatetime: '2026-06-12T13:00:00.000Z',
   isActive: true,
   bgImageUrl: '/images/minecraft_cat.png',
   finishText: 'Сервер запущен!'
@@ -502,8 +502,23 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const unsubMinecraft = onSnapshot(doc(db, 'settings', 'minecraft'), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as MinecraftConfig;
-            setMinecraftConfig(data);
-            localStorage.setItem('penis_ink_minecraft_config', JSON.stringify(data));
+            // Merge with DEFAULT_MINECRAFT_CONFIG to ensure no missing fields
+            const mergedData: MinecraftConfig = {
+              ...DEFAULT_MINECRAFT_CONFIG,
+              ...data,
+              rules: data.rules && data.rules.length > 0 ? data.rules : DEFAULT_MINECRAFT_CONFIG.rules,
+              steps: data.steps && data.steps.length > 0 ? data.steps : DEFAULT_MINECRAFT_CONFIG.steps,
+              players: data.players && data.players.length > 0 ? data.players : DEFAULT_MINECRAFT_CONFIG.players,
+              mods: data.mods || DEFAULT_MINECRAFT_CONFIG.mods || []
+            };
+
+            // If critical fields are missing, write them back to Firestore to auto-heal
+            if (!data.serverIp || !data.version) {
+              setDoc(doc(db, 'settings', 'minecraft'), mergedData).catch(console.error);
+            }
+
+            setMinecraftConfig(mergedData);
+            localStorage.setItem('penis_ink_minecraft_config', JSON.stringify(mergedData));
           } else {
             setDoc(doc(db, 'settings', 'minecraft'), DEFAULT_MINECRAFT_CONFIG).catch(console.error);
             setMinecraftConfig(DEFAULT_MINECRAFT_CONFIG);
@@ -968,7 +983,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const uploadNewsMedia = async (newsItem: Partial<NewsArticle>): Promise<Partial<NewsArticle>> => {
     const updated = { ...newsItem };
-    
+
     if (updated.videoUrl && updated.videoUrl.startsWith('data:video/')) {
       if (isFirebaseConnectedRef.current) {
         try {
@@ -1170,19 +1185,19 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (imageUrl && imageUrl.startsWith('data:image/')) {
               try {
                 const storageRef = ref(storage, `backgrounds/${tabId}-${Date.now()}.webp`);
-                
+
                 // Upload with 20s timeout
                 await Promise.race([
                   uploadString(storageRef, imageUrl, 'data_url'),
                   new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Firebase Storage upload timeout')), 20000))
                 ]);
-                
+
                 // Get download URL with 10s timeout
                 imageUrl = await Promise.race([
                   getDownloadURL(storageRef),
                   new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Firebase Storage getDownloadURL timeout')), 10000))
                 ]);
-                
+
                 resolvedConfig[tabId] = {
                   ...bg,
                   imageUrl
@@ -1192,7 +1207,7 @@ export const StreamingProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 console.warn(`Firebase Storage upload failed for ${tabId}, using Base64 fallback in Firestore`, storageError);
               }
             }
-            
+
             // Set document in Firestore with 15s timeout
             const docData: any = {
               overlayOpacity: resolvedConfig[tabId].overlayOpacity
